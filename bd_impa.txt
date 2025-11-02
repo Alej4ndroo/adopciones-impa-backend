@@ -1,0 +1,572 @@
+-- =========================
+--  IMPA - Esquema inicial
+-- =========================
+
+-- ENUMs
+CREATE TYPE especie_mascota AS ENUM ('perro', 'gato', 'conejo', 'hamster', 'otro');
+CREATE TYPE tamano_mascota AS ENUM ('pequeño', 'mediano', 'grande');
+CREATE TYPE sexo_mascota AS ENUM ('macho', 'hembra');
+CREATE TYPE estado_adopcion AS ENUM ('disponible', 'en_proceso', 'adoptado');
+CREATE TYPE estado_cita AS ENUM ('programada', 'completada', 'cancelada', 'no_asistio');
+CREATE TYPE estado_documentacion AS ENUM ('pendiente', 'verificada', 'rechazada');
+CREATE TYPE estado_solicitud_adopcion AS ENUM ('en_revision','aprobada','rechazada','cancelada');
+CREATE TYPE decision_adopcion AS ENUM ('aceptada','rechazada');
+CREATE TYPE tipo_notificacion AS ENUM ('seguimiento','aceptacion', 'rechazo', 'recordatorio_cita', 'creacion_cita', 'actualizacion_cita', 'documento_verificado', 'documento_rechazado', 'nueva_solicitud', 'expediente_creado');
+
+CREATE TABLE roles (
+    id_rol SERIAL PRIMARY KEY,
+    nombre_rol VARCHAR(50) UNIQUE NOT NULL
+);
+
+-- USUARIOS
+CREATE TABLE usuarios (
+  id_usuario SERIAL PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL,
+  correo_electronico VARCHAR(100) UNIQUE NOT NULL,
+  contrasena TEXT NOT NULL,
+  fecha_nacimiento DATE NOT NULL,
+  telefono VARCHAR(20),
+  documentacion_verificada estado_documentacion DEFAULT 'pendiente',
+  foto_perfil_base64 TEXT,
+  id_rol INT REFERENCES roles(id_rol) ON DELETE CASCADE,
+  activo BOOLEAN DEFAULT TRUE,
+  fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  fecha_actualizacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+COMMENT ON TABLE usuarios IS 'Tabla principal que contiene todos los usuarios del sistema';
+
+CREATE TABLE direcciones (
+    id_direccion SERIAL PRIMARY KEY,
+    id_usuario INT REFERENCES usuarios(id_usuario) ON DELETE CASCADE, 
+    calle VARCHAR(200) NOT NULL,
+    colonia VARCHAR(100) NOT NULL,
+    codigo_postal VARCHAR(10) NOT NULL,
+    ciudad VARCHAR(100) NOT NULL,
+    estado VARCHAR(100) NOT NULL,
+    pais VARCHAR(100) NOT NULL DEFAULT 'México',
+    tipo_direccion VARCHAR(50) DEFAULT 'domicilio', 
+    es_principal BOOLEAN DEFAULT TRUE, 
+    CONSTRAINT uq_direccion_principal UNIQUE (id_usuario, es_principal) 
+    DEFERRABLE INITIALLY IMMEDIATE 
+);
+COMMENT ON TABLE direcciones IS 'Direcciones asociadas a los usuarios (domicilio, envío, etc.).';
+
+-- EMPLEADOS
+CREATE TABLE empleados (
+  id_empleado SERIAL PRIMARY KEY,
+  id_usuario INT REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+  numero_empleado VARCHAR(20) UNIQUE NOT NULL,
+  fecha_contratacion DATE DEFAULT CURRENT_DATE,
+  cedula_profesional VARCHAR(20),
+  licenciatura VARCHAR(100),
+  especialidad VARCHAR(100),
+  activo BOOLEAN DEFAULT TRUE,
+  CONSTRAINT uq_empleados_cedula_profesional UNIQUE (cedula_profesional)
+);
+COMMENT ON TABLE empleados IS 'Empleados de IMPA; veterinarios incluidos (cédula, especialidad)';
+
+-- =========================
+--  Función y Trigger para numero_empleado automático
+-- =========================
+CREATE OR REPLACE FUNCTION generar_siguiente_numero_empleado()
+RETURNS TRIGGER AS $$
+DECLARE
+    ultimo_numero INT;
+    siguiente_numero_str VARCHAR;
+BEGIN
+    -- Obtener el número más alto de la columna numero_empleado
+    SELECT COALESCE(MAX(CAST(SUBSTRING(numero_empleado FROM 4) AS INTEGER)), 0)
+    INTO ultimo_numero
+    FROM empleados;
+
+    -- Generar el siguiente número en formato 'EMP' + 3 dígitos con padding de ceros
+    siguiente_numero_str := 'EMP' || LPAD((ultimo_numero + 1)::TEXT, 3, '0');
+    NEW.numero_empleado := siguiente_numero_str;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_set_numero_empleado
+BEFORE INSERT ON empleados
+FOR EACH ROW
+EXECUTE FUNCTION generar_siguiente_numero_empleado();
+
+-- MASCOTAS
+CREATE TABLE mascotas (
+  id_mascota SERIAL PRIMARY KEY,
+  nombre VARCHAR(50) NOT NULL,
+  especie especie_mascota NOT NULL,
+  raza VARCHAR(50),
+  edad_en_meses INTEGER NOT NULL CHECK (edad_en_meses >= 0),
+  color VARCHAR(30) NOT NULL,
+  tamano tamano_mascota NOT NULL,
+  sexo sexo_mascota NOT NULL,
+  descripcion TEXT,
+  vacunado BOOLEAN DEFAULT FALSE,
+  esterilizado BOOLEAN DEFAULT FALSE,
+  estado_adopcion estado_adopcion DEFAULT 'disponible',
+  fecha_ingreso DATE DEFAULT CURRENT_DATE,
+  fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  fecha_actualizacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  creado_por INT REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+  activo BOOLEAN DEFAULT TRUE
+);
+CREATE INDEX idx_mascotas_estado_activo ON mascotas(estado_adopcion, activo);
+CREATE INDEX idx_mascotas_especie_estado ON mascotas(especie, estado_adopcion);
+COMMENT ON TABLE mascotas IS 'Información de todas las mascotas disponibles para adopción';
+
+-- IMAGENES DE MASCOTAS
+CREATE TABLE imagenes_mascotas (
+  id_imagen_mascota SERIAL PRIMARY KEY,
+  id_mascota INT REFERENCES mascotas(id_mascota) ON DELETE SET NULL,
+  imagen_base64 TEXT
+);
+COMMENT ON TABLE mascotas IS 'Fotos de la mascota';
+
+CREATE TABLE servicios (
+  id_servicio SERIAL PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL,
+  descripcion TEXT,
+  costo_base DECIMAL(10,2) DEFAULT 0.00,
+  duracion_estimada_min INTEGER,
+  requiere_mascota BOOLEAN DEFAULT TRUE,
+  activo BOOLEAN DEFAULT TRUE,
+  fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- CITAS
+CREATE TABLE citas (
+  id_cita SERIAL PRIMARY KEY,
+  id_usuario INT NOT NULL REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+  id_mascota INT REFERENCES mascotas(id_mascota) ON DELETE SET NULL,
+  id_empleado INT REFERENCES empleados(id_empleado) ON DELETE SET NULL,
+  id_servicio INT REFERENCES servicios(id_servicio) ON DELETE SET NULL,
+  fecha_cita TIMESTAMPTZ NOT NULL,
+  estado_cita estado_cita DEFAULT 'programada',
+  motivo TEXT,
+  observaciones TEXT,
+  costo DECIMAL(10,2) DEFAULT 0.00,
+  fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  creado_por INT REFERENCES usuarios(id_usuario) ON DELETE SET NULL
+);
+COMMENT ON TABLE citas IS 'Sistema de citas; referencia a servicios por id_servicio';
+
+-- ADOPCIONES
+CREATE TABLE adopciones (
+  id_adopcion SERIAL PRIMARY KEY,
+  id_usuario INT NOT NULL REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+  id_mascota INT REFERENCES mascotas(id_mascota) ON DELETE SET NULL,
+  fecha_solicitud TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  fecha_entrega TIMESTAMPTZ,
+  estado estado_adopcion DEFAULT 'en_proceso',
+  estado_solicitud estado_solicitud_adopcion NOT NULL DEFAULT 'en_revision',
+  documentos_verificados BOOLEAN DEFAULT FALSE,
+  motivo_devolucion TEXT,
+  fecha_devolucion TIMESTAMPTZ,
+  observaciones TEXT,
+  ubicacion_en_hogar TEXT,
+  motivo_adopcion TEXT,
+  procesado_por INT REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+  CONSTRAINT check_fecha_entrega_posterior
+    CHECK (fecha_entrega IS NULL OR fecha_entrega >= fecha_solicitud)
+);
+
+-- una solicitud abierta por mascota
+CREATE UNIQUE INDEX uq_adopcion_mascota_abierta
+ON adopciones(id_mascota)
+WHERE (estado_solicitud IN ('en_revision','aprobada') AND fecha_entrega IS NULL);
+COMMENT ON TABLE adopciones IS 'Registro de procesos de adopción y su solicitud';
+
+-- RESOLUCIONES DE ADOPCIÓN (aceptada/rechazada con motivo y fecha)
+CREATE TABLE resoluciones_adopcion (
+  id_resolucion SERIAL PRIMARY KEY,
+  id_adopcion INT NOT NULL REFERENCES adopciones(id_adopcion) ON DELETE CASCADE,
+  decision decision_adopcion NOT NULL,
+  motivo TEXT,
+  fecha_resolucion TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  resuelto_por INT REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+  CONSTRAINT chk_motivo_si_rechazada
+    CHECK ( (decision = 'rechazada' AND motivo IS NOT NULL) OR decision = 'aceptada' )
+);
+COMMENT ON TABLE resoluciones_adopcion IS 'Historial de decisiones de adopción con motivo en rechazos';
+
+-- SEGUIMIENTOS
+CREATE TABLE seguimientos_adopcion (
+  id_seguimiento SERIAL PRIMARY KEY,
+  id_adopcion INT NOT NULL REFERENCES adopciones(id_adopcion) ON DELETE CASCADE,
+  fecha_seguimiento DATE NOT NULL,
+  estado_mascota VARCHAR(50) NOT NULL,
+  observaciones TEXT,
+  requiere_atencion BOOLEAN DEFAULT FALSE,
+  siguiente_seguimiento DATE,
+  realizado_por INT REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+  fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT check_siguiente_seguimiento_posterior
+    CHECK (siguiente_seguimiento IS NULL OR siguiente_seguimiento >= fecha_seguimiento)
+);
+
+-- FOTOS EN SEGUIMIENTO
+CREATE TABLE seguimiento_fotos (
+  id_foto SERIAL PRIMARY KEY,
+  id_seguimiento INT NOT NULL REFERENCES seguimientos_adopcion(id_seguimiento) ON DELETE CASCADE,
+  url TEXT NOT NULL,
+  descripcion TEXT,
+  fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- DOCS GENERALES DE PERSONA
+CREATE TABLE documentos_persona (
+  id_documento SERIAL PRIMARY KEY,
+  id_usuario INT NOT NULL REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+  tipo_documento VARCHAR(50) NOT NULL,
+  numero_documento VARCHAR(50),
+  archivo_url VARCHAR(500),
+  verificado BOOLEAN DEFAULT FALSE,
+  fecha_verificacion TIMESTAMPTZ,
+  verificado_por INT REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+  observaciones TEXT,
+  fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- DOCS POR ADOPCIÓN
+CREATE TABLE documentos_adopcion (
+  id_doc SERIAL PRIMARY KEY,
+  id_adopcion INT NOT NULL REFERENCES adopciones(id_adopcion) ON DELETE CASCADE,
+  tipo VARCHAR(30) NOT NULL CHECK (tipo IN ('INE','ACTA_NAC','COMP_DOM')),
+  verificado BOOLEAN DEFAULT FALSE,
+  verificado_por INT REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+  fecha_verificacion TIMESTAMPTZ,
+  observaciones TEXT,
+  fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+-- EXPEDIENTES VETERINARIOS
+CREATE TABLE expedientes_veterinarios (
+  id_expediente SERIAL PRIMARY KEY,
+  id_mascota INT REFERENCES mascotas(id_mascota) ON DELETE SET NULL,
+  observaciones TEXT,
+  fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  creado_por INT REFERENCES usuarios(id_usuario) ON DELETE SET NULL
+);
+COMMENT ON TABLE expedientes_veterinarios IS 'Historial clínico de cada mascota';
+
+-- CONSULTAS VETERINARIAS
+CREATE TABLE consultas_veterinarias (
+  id_consulta SERIAL PRIMARY KEY,
+  id_expediente INT NOT NULL REFERENCES expedientes_veterinarios(id_expediente) ON DELETE CASCADE,
+  id_empleado INT REFERENCES empleados(id_empleado) ON DELETE SET NULL,
+  fecha_consulta TIMESTAMPTZ NOT NULL,
+  motivo TEXT,
+  sintomas TEXT,
+  diagnostico TEXT,
+  tratamiento TEXT,
+  recomendaciones TEXT,
+  peso_kg NUMERIC(5,2),
+  temperatura_c NUMERIC(4,1),
+  costo NUMERIC(10,2) DEFAULT 0.00,
+  proxima_cita TIMESTAMPTZ,
+  fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  creado_por INT REFERENCES usuarios(id_usuario) ON DELETE SET NULL
+);
+COMMENT ON TABLE consultas_veterinarias IS 'Consultas veterinarias asociadas a cada expediente';
+
+-- VACUNAS (Opción A: sin catálogo)
+CREATE TABLE mascota_vacunas (
+  id_mascota_vacuna SERIAL PRIMARY KEY,
+  id_mascota INT NOT NULL REFERENCES mascotas(id_mascota) ON DELETE CASCADE,
+  vacuna_nombre TEXT NOT NULL,
+  id_empleado INT REFERENCES empleados(id_empleado) ON DELETE SET NULL,
+  fecha_aplicacion DATE NOT NULL,
+  lote VARCHAR(50),
+  proxima_dosis DATE,
+  observaciones TEXT,
+  fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+  creado_por INT REFERENCES usuarios(id_usuario) ON DELETE SET NULL,
+  CONSTRAINT uq_vacuna_evento UNIQUE (id_mascota, vacuna_nombre, fecha_aplicacion)
+);
+COMMENT ON TABLE mascota_vacunas IS 'Historial de vacunación con nombre libre';
+
+-- NOTIFICACIONES (referencia a catálogo)
+CREATE TABLE notificaciones (
+  id_notificacion SERIAL PRIMARY KEY,
+  id_usuario INT NOT NULL REFERENCES usuarios(id_usuario) ON DELETE CASCADE,
+  tipo_notificacion tipo_notificacion NOT NULL,
+  titulo TEXT NOT NULL,
+  mensaje TEXT NOT NULL,
+  creada_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE permisos (
+    id_permiso SERIAL PRIMARY KEY,
+    nombre_permiso VARCHAR(100) UNIQUE NOT NULL
+);
+
+CREATE TABLE roles_permisos (
+    id_rol INT REFERENCES roles(id_rol),
+    id_permiso INT REFERENCES permisos(id_permiso),
+    PRIMARY KEY (id_rol, id_permiso)
+);
+
+-- =========================
+--  Datos iniciales
+-- =========================
+
+-- Inserción de roles base
+INSERT INTO roles (nombre_rol) VALUES
+('admin'),
+('director'),
+('veterinario'),
+('persona');
+
+-- Catálogo de permisos
+INSERT INTO permisos (nombre_permiso) VALUES
+-- Usuarios
+('crear_usuario'),
+('editar_usuario'),
+('eliminar_usuario'),
+('ver_usuario'),
+
+-- Empleados
+('crear_empleado'),
+('editar_empleado'),
+('eliminar_empleado'),
+('ver_empleado'),
+
+-- Mascotas
+('crear_mascota'),
+('editar_mascota'),
+('eliminar_mascota'),
+('ver_mascota'),
+
+-- Citas
+('crear_cita'),
+('editar_cita'),
+('cancelar_cita'),
+('ver_cita'),
+
+-- Adopciones
+('crear_adopcion'),
+('aprobar_adopcion'),
+('rechazar_adopcion'),
+('ver_adopcion'),
+
+-- Expedientes veterinarios
+('crear_expediente'),
+('editar_expediente'),
+('ver_expediente'),
+
+-- Consultas veterinarias
+('crear_consulta'),
+('editar_consulta'),
+('ver_consulta'),
+
+-- Documentación
+('ver_documento'),
+('verificar_documento'),
+('rechazar_documento'),
+
+-- Notificaciones
+('crear_notificacion'),
+('ver_notificacion');
+
+-- ==============================
+-- ADMIN: Todos los permisos
+-- ==============================
+INSERT INTO roles_permisos (id_rol, id_permiso)
+SELECT r.id_rol, p.id_permiso
+FROM roles r, permisos p
+WHERE r.nombre_rol = 'admin';
+
+-- ==============================
+-- DIRECTOR: gestión amplia, sin manejar usuarios
+-- ==============================
+INSERT INTO roles_permisos (id_rol, id_permiso)
+SELECT r.id_rol, p.id_permiso
+FROM roles r
+JOIN permisos p ON p.nombre_permiso IN (
+  'ver_empleado',
+
+  'crear_mascota','editar_mascota','eliminar_mascota','ver_mascota',
+
+  'crear_cita','editar_cita','cancelar_cita','ver_cita',
+
+  'crear_adopcion','aprobar_adopcion','rechazar_adopcion','ver_adopcion',
+
+  'crear_expediente','editar_expediente','ver_expediente',
+
+  'crear_consulta','editar_consulta','ver_consulta',
+
+  'ver_documento','verificar_documento','rechazar_documento',
+
+  'crear_notificacion','ver_notificacion'
+)
+WHERE r.nombre_rol = 'director';
+
+-- ==============================
+-- VETERINARIO: enfocado en salud animal
+-- ==============================
+INSERT INTO roles_permisos (id_rol, id_permiso)
+SELECT r.id_rol, p.id_permiso
+FROM roles r
+JOIN permisos p ON p.nombre_permiso IN (
+  'ver_mascota',
+
+  'crear_expediente','editar_expediente','ver_expediente',
+
+  'crear_consulta','editar_consulta','ver_consulta'
+)
+WHERE r.nombre_rol = 'veterinario';
+
+-- ==============================
+-- PERSONA: interacción básica
+-- ==============================
+INSERT INTO roles_permisos (id_rol, id_permiso)
+SELECT r.id_rol, p.id_permiso
+FROM roles r
+JOIN permisos p ON p.nombre_permiso IN (
+  'ver_mascota',
+
+  'crear_adopcion','ver_adopcion',
+
+  'crear_cita','ver_cita',
+
+  'ver_notificacion'
+)
+WHERE r.nombre_rol = 'persona';
+
+-- Usuarios base
+INSERT INTO usuarios (nombre, correo_electronico, contrasena, fecha_nacimiento, telefono, id_rol) VALUES
+('Johanna Deziree Velasco Moreno', 'admin@impa.gov.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '2004-08-05', '4341198657', '1'),
+('Ricardo De La Piedra Rosales', 'director@impa.gov.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '2004-01-03', '4434694207', '2'),
+('Alejandro Lopez Chaparro', 'alejandro@gmail.com', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '2004-11-19', '4433697279', '4'),
+('Antonio Emiliano Garcia Dominguez', 'antonio@impa.gov.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '2004-03-18', '4433680109', '3'),
+('Eduardo Osvaldo Rodriguez Gutierrez', 'eduardo@impa.gov.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '2004-10-27', '4433723548', '3');
+
+-- Insertar empleados
+INSERT INTO empleados (id_usuario, cedula_profesional, fecha_contratacion, activo)
+SELECT id_usuario, '12457896', CURRENT_DATE, true
+FROM usuarios WHERE correo_electronico = 'admin@impa.gov.mx'
+UNION ALL
+SELECT id_usuario, '10234567', CURRENT_DATE, true
+FROM usuarios WHERE correo_electronico = 'director@impa.gov.mx'
+UNION ALL
+SELECT id_usuario, '12365498', CURRENT_DATE, true
+FROM usuarios WHERE correo_electronico = 'antonio@impa.gov.mx'
+UNION ALL
+SELECT id_usuario, '32198746', CURRENT_DATE, true
+FROM usuarios WHERE correo_electronico = 'eduardo@impa.gov.mx';
+
+INSERT INTO servicios (nombre, descripcion, costo_base, duracion_estimada_min, requiere_mascota) VALUES
+('Cita de Adopción', 'Entrevista para proceso de adopción', 0.00, 45, FALSE),
+('Consulta General', 'Revisión veterinaria general', 200.00, 30, TRUE),
+('Vacunación', 'Aplicación de vacunas', 150.00, 15, TRUE),
+('Esterilización', 'Cirugía de esterilización', 800.00, 120, TRUE),
+('Seguimiento Post-Adopción', 'Visita de seguimiento', 0.00, 60, TRUE),
+('Desparasitación', 'Tratamiento antiparasitario', 100.00, 20, TRUE);
+
+INSERT INTO adopciones (id_usuario, id_mascota, fecha_solicitud,fecha_entrega,estado,estado_solicitud,documentos_verificados,observaciones,ubicacion_en_hogar,motivo_adopcion,procesado_por)
+VALUES (
+    (
+        SELECT id_usuario
+        FROM usuarios
+        WHERE correo_electronico = 'alejandro@gmail.com'
+    ),
+    (
+        SELECT id_mascota
+        FROM mascotas
+        WHERE nombre = 'Macho'
+    ),
+    '2024-06-15 10:30:00-06',
+    '2024-06-20 14:00:00-06',
+    'adoptado',
+    'aprobada',
+    TRUE,
+    'Cuota de adopción liquidada; entrega programada con seguimiento posterior.',
+    'Casa con patio amplio y cercado para perro grande.',
+    'Familia busca compañía y tiene experiencia previa con razas activas.',
+    (
+        SELECT id_usuario
+        FROM usuarios
+       WHERE correo_electronico = 'director@impa.gov.mx'
+    )
+);
+
+INSERT INTO adopciones (
+    id_usuario,
+    id_mascota,
+    fecha_solicitud,
+    fecha_entrega,
+    estado,
+    estado_solicitud,
+    documentos_verificados,
+    observaciones,
+    motivo_adopcion,
+    procesado_por
+)
+VALUES
+(
+    (SELECT id_usuario
+     FROM usuarios
+     WHERE correo_electronico = 'alejandro@gmail.com'),
+    (SELECT id_mascota FROM mascotas WHERE nombre = 'Macho'),
+    '2024-07-02 11:30:00-06',
+    '2024-07-07 16:00:00-06',
+    'adoptado',
+    'aprobada',
+    TRUE,
+    'Entrega coordinada con seguimiento a los 15 días.',
+    'Familia buscaba una compañera tranquila para departamento.',
+    (SELECT id_usuario FROM usuarios WHERE correo_electronico = 'director@impa.gov.mx')
+),
+(
+    (SELECT id_usuario
+     FROM usuarios
+     WHERE correo_electronico = 'alejandro@gmail.com'),
+    (SELECT id_mascota FROM mascotas WHERE nombre = 'Macho'),
+    '2024-08-10 09:15:00-06',
+    '2024-08-15 13:45:00-06',
+    'adoptado',
+    'aprobada',
+    TRUE,
+    'Conejita entregada con kit básico y recomendaciones.',
+    'Adoptante desea mascota de interior para espacio seguro.',
+    (SELECT id_usuario FROM usuarios WHERE correo_electronico = 'antonio@impa.gov.mx')
+),
+(
+    (SELECT id_usuario
+     FROM usuarios
+     WHERE correo_electronico = 'alejandro@gmail.com'),
+    (SELECT id_mascota FROM mascotas WHERE nombre = 'Macho'),
+    '2024-09-05 10:00:00-06',
+    '2024-09-12 15:30:00-06',
+    'adoptado',
+    'aprobada',
+    TRUE,
+    'Se programó visita de seguimiento al mes.',
+    'Familia con experiencia en razas activas busca compañero.',
+    (SELECT id_usuario FROM usuarios WHERE correo_electronico = 'director@impa.gov.mx')
+);
+
+--SELECT * FROM adopciones;
+
+-- Usuarios Empleados veterinarios
+INSERT INTO usuarios (nombre, correo_electronico, contrasena, fecha_nacimiento, telefono, id_rol) VALUES
+('Daniela Rivera', 'd.rivera@impa.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '2000-02-24', '443-123-4567', 3),
+('Javier Gómez', 'j.gomez@impa.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '2001-02-14', '443-765-4321', 3),
+('Laura Martínez', 'l.martinez@impa.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '1999-03-22', '443-890-1234', 3),
+('Esteban Pérez', 'e.perez@impa.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '1998-04-01', '443-555-0101', 3),
+('Mónica Sánchez', 'm.sanchez@impa.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '1997-05-29', '443-555-0103', 3);
+
+-- Insertar empleados veterinarios
+INSERT INTO empleados (id_usuario, cedula_profesional, fecha_contratacion, licenciatura, especialidad, activo)
+SELECT id_usuario, '1234567', CURRENT_DATE, 'Médico Veterinario Zootecnista', 'Medicina preventiva y nutrición', true
+FROM usuarios WHERE correo_electronico = 'd.rivera@impa.mx'
+UNION ALL
+SELECT id_usuario, '7654321', CURRENT_DATE, 'Médico Veterinario Zootecnista', 'Diagnóstico por imagen', true
+FROM usuarios WHERE correo_electronico = 'j.gomez@impa.mx'
+UNION ALL
+SELECT id_usuario, '8901234', CURRENT_DATE, 'Médico Veterinario Zootecnista', 'Cirugía y analgesia', true
+FROM usuarios WHERE correo_electronico = 'l.martinez@impa.mx'
+UNION ALL
+SELECT id_usuario, null, CURRENT_DATE, 'Asistente Veterinario', 'Manejo y cuidado de pacientes', true
+FROM usuarios WHERE correo_electronico = 'e.perez@impa.mx'

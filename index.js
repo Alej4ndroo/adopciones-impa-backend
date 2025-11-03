@@ -32,9 +32,21 @@ const app = express();
 // ==================================
 // CORS - para conectar con tu frontend React
 // ==================================
+const allowedOrigins = [
+  'http://localhost:5173',
+  'https://adopciones-impa-frontend.vercel.app'
+];
+
 app.use(cors({
-  origin: 'http://localhost:5173', // Cambia si tu frontend usa otro puerto o dominio
-  credentials: true
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('CORS bloqueado para origen:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
 }));
 
 // ==================================

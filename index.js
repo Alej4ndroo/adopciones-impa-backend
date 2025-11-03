@@ -32,22 +32,15 @@ const app = express();
 // ==================================
 // CORS - para conectar con tu frontend React
 // ==================================
-const allowedOrigins = [
-  'http://localhost:5173',
-  'https://adopciones-impa-frontend.vercel.app'
-];
-
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log('CORS bloqueado para origen:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
+  origin: [
+    'http://localhost:5173',
+    'https://adopciones-impa-frontend.vercel.app',
+    'https://adopciones-impa-frontend-git-main-alejandros-projects-eb484e24.vercel.app'
+  ],
+  credentials: true
 }));
+
 
 // ==================================
 // CONFIGURACIÓN GENERAL

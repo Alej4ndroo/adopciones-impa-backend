@@ -69,6 +69,35 @@ async function getEmpleadosActivos() {
     return result.rows;
 }
 
+async function getEmpleadoPorUsuarioId(id_usuario) {
+    const query = `
+        SELECT 
+            e.*,
+            json_build_object(
+                'id_usuario', u.id_usuario,
+                'nombre', u.nombre,
+                'correo_electronico', u.correo_electronico,
+                'telefono', u.telefono,
+                'url_foto_perfil', u.url_foto_perfil,
+                'fecha_nacimiento', u.fecha_nacimiento,
+                'id_rol', r.id_rol,
+                'nombre_rol', r.nombre_rol, 
+                'activo', u.activo,
+                'fecha_creacion', u.fecha_creacion
+            ) as usuarios
+        FROM empleados e
+        LEFT JOIN usuarios u ON e.id_usuario = u.id_usuario
+        JOIN roles r ON u.id_rol = r.id_rol
+        WHERE e.id_usuario = $1 AND u.activo = true
+    `;
+    
+    const result = await db.query(query, [id_usuario]);
+    if (result.rows.length === 0) {
+        throw new Error('Empleado no encontrado');
+    }
+    return result.rows[0];
+}
+
 // READ - Obtener un empleado por ID
 /**
  * @param {number} id_usuario - El ID del usuario a buscar.
@@ -511,6 +540,7 @@ module.exports = {
     // READ operations
     getEmpleados,
     getEmpleadosActivos,
+    getEmpleadoPorUsuarioId,
     obtenerPerfil,
     getEmpleadoPorNumero,
     getEmpleadosPorCargo,

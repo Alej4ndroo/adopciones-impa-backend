@@ -78,7 +78,7 @@ async function getEmpleadoPorUsuarioId(id_usuario) {
                 'nombre', u.nombre,
                 'correo_electronico', u.correo_electronico,
                 'telefono', u.telefono,
-                'url_foto_perfil', u.url_foto_perfil,
+                'foto_perfil_base64', u.foto_perfil_base64,
                 'fecha_nacimiento', u.fecha_nacimiento,
                 'id_rol', r.id_rol,
                 'nombre_rol', r.nombre_rol, 

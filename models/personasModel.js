@@ -196,7 +196,6 @@ async function crearPersona(data) {
     }
 }
 
-
 // UPDATE - Actualizar una persona existente
 async function actualizarPersona(id_persona, datosActualizados) {
     // Construir la query dinámicamente basada en los campos proporcionados

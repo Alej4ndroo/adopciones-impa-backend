@@ -107,12 +107,23 @@ async function getMascotaPorId(id_mascota) {
     const query = `
         SELECT 
             m.*,
+            
             json_build_object(
                 'id_usuario', u.id_usuario,
                 'nombre', u.nombre,
                 'correo_electronico', u.correo_electronico,
                 'telefono', u.telefono
-            ) as usuarios
+            ) as usuario,
+            
+            COALESCE(
+                (
+                    SELECT json_agg(im.imagen_base64)
+                    FROM imagenes_mascotas im
+                    WHERE im.id_mascota = m.id_mascota
+                ),
+                '[]'::json 
+            ) as imagenes_base64
+            
         FROM mascotas m
         LEFT JOIN usuarios u ON m.creado_por = u.id_usuario
         WHERE m.id_mascota = $1
@@ -122,13 +133,12 @@ async function getMascotaPorId(id_mascota) {
     if (result.rows.length === 0) {
         throw new Error('Mascota no encontrada');
     }
+    
     return result.rows[0];
 }
 
 // CREATE - Crear una nueva mascota
 async function crearMascota(mascotaData) {
-    // Utilizamos la desestructuración de tu código original,
-    // ¡y agregamos imagenes_base64!
     const {
         nombre,
         especie,
@@ -142,7 +152,6 @@ async function crearMascota(mascotaData) {
         fecha_ingreso = new Date().toISOString().split('T')[0],
         creado_por,
         activo = true,
-        // Nuevo campo: Arreglo de strings Base64
         imagenes_base64 = [] 
     } = mascotaData;
 
@@ -168,25 +177,19 @@ async function crearMascota(mascotaData) {
 
         const resultMascota = await db.query(queryMascota, valuesMascota);
         id_mascota = resultMascota.rows[0].id_mascota;
-        // La ID de la mascota principal es esencial para el siguiente paso
 
-        // --- 2. Inserción de las Imágenes (Tabla: imagenes_mascotas) ---
         if (imagenes_base64 && imagenes_base64.length > 0) {
             
-            // Creamos un array de promesas de inserción para cada imagen
             const insercionDeImagenes = imagenes_base64.map(async (base64String) => {
                 const queryImagen = `
                     INSERT INTO imagenes_mascotas (id_mascota, imagen_base64) 
                     VALUES ($1, $2)
                 `;
-                // Asumimos que el campo que guarda el string Base64 se llama 'imagen_base64'
                 const valuesImagen = [id_mascota, base64String];
                 
-                // Ejecutamos la inserción para esta imagen
                 return db.query(queryImagen, valuesImagen);
             });
 
-            // Esperamos a que todas las inserciones de imágenes terminen
             await Promise.all(insercionDeImagenes);
         }
         return await getMascotaPorId(id_mascota);

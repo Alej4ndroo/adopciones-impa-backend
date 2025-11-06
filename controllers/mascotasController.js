@@ -33,3 +33,20 @@ exports.contarDisponibles = async (req, res) => {
     res.status(500).json({ mensaje: 'Error al contar mascotas disponibles' });
   }
 };
+
+// Obtener una mascota por ID
+exports.obtenerPorId = async (req, res) => {
+    try {
+        const { id_mascota } = req.params;
+        const mascota = await Mascota.getMascotaPorId(id_mascota);
+        res.json(mascota);
+
+    } catch (error) {
+        console.error(error);
+        if (error.message === 'Mascota no encontrada') {
+            res.status(404).json({ mensaje: 'Mascota no encontrada' });
+        } else {
+            res.status(500).json({ mensaje: 'Error al obtener la mascota' });
+        }
+    }
+};

@@ -22,17 +22,13 @@ const getAdopciones = async () => {
                 'raza', m.raza
             ) AS mascota,
             
-            -- Objeto anidado de Adoptante (Persona y su Usuario)
+            -- Objeto anidado de Adoptante (Usuario)
             json_build_object(
-                'id_persona', p.id_persona,
-                'calle', p.calle, 
-                'ciudad', p.ciudad,
-                'usuario', json_build_object(
-                    'id_usuario', u_a.id_usuario,
-                    'nombre', u_a.nombre,
-                    'correo_electronico', u_a.correo_electronico
-                )
-            ) AS adoptante,
+                'id_usuario', u.id_usuario,
+                'nombre', u.nombre,
+                'correo_electronico', u.correo_electronico
+            ) AS usuario,  -- ❌ CAMBIADO: "Usuario" → "usuario" (minúscula para consistencia)
+                        -- ❌ ELIMINADO: Paréntesis extra que causaba error de sintaxis
             
             -- Objeto anidado del Usuario que procesó la solicitud
             json_build_object(
@@ -41,10 +37,9 @@ const getAdopciones = async () => {
                 'correo_electronico', u_p.correo_electronico
             ) AS procesado_por
         FROM adopciones a
-        LEFT JOIN personas p ON a.id_persona = p.id_persona
-        LEFT JOIN usuarios u_a ON p.id_usuario = u_a.id_usuario -- Usuario del Adoptante (u_a)
+        LEFT JOIN usuarios u ON a.id_usuario = u.id_usuario
         LEFT JOIN mascotas m ON a.id_mascota = m.id_mascota
-        LEFT JOIN usuarios u_p ON a.procesado_por = u_p.id_usuario -- Usuario Procesador (u_p)
+        LEFT JOIN usuarios u_p ON a.procesado_por = u_p.id_usuario
         ORDER BY a.fecha_solicitud DESC
     `;
     

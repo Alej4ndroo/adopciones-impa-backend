@@ -108,7 +108,6 @@ async function obtenerPerfil(id_usuario) {
     
     const selectQuery = `
         SELECT 
-            -- Campos de Empleados (e)
             e.id_empleado,
             e.numero_empleado,
             e.fecha_contratacion,
@@ -116,8 +115,6 @@ async function obtenerPerfil(id_usuario) {
             e.licenciatura,
             e.especialidad,
             e.activo AS empleado_activo,
-            
-            -- Campos de Usuarios (u)
             u.id_usuario,
             u.nombre,
             u.correo_electronico,
@@ -127,8 +124,6 @@ async function obtenerPerfil(id_usuario) {
             u.id_rol,
             u.documentacion_verificada,
             u.activo AS usuario_activo,
-            
-            -- Campos de Direcciones (d)
             d.id_direccion,
             d.calle,
             d.colonia,
@@ -138,34 +133,26 @@ async function obtenerPerfil(id_usuario) {
             d.pais,
             d.tipo_direccion
             
-        FROM 
-            usuarios u
-        JOIN 
-            empleados e ON u.id_usuario = e.id_usuario
-        LEFT JOIN 
-            direcciones d ON u.id_usuario = d.id_usuario AND d.es_principal = true
-        WHERE 
-            u.id_usuario = $1; -- 🚨 CAMBIO CLAVE AQUÍ
+        FROM usuarios u
+        JOIN empleados e ON u.id_usuario = e.id_usuario
+        LEFT JOIN direcciones d ON u.id_usuario = d.id_usuario AND d.es_principal = true
+        WHERE u.id_usuario = $1;
     `;
-    
-    // 
 
     try {
-        // 2. 🚀 Ejecutar la Consulta
         const result = await client.query(selectQuery, [id_usuario]);
         
-        // 3. 📤 Devolver el Resultado
         if (result.rows.length > 0) {
-            return result.rows[0]; // Devuelve el perfil del empleado encontrado
+            return result.rows[0];
         } else {
-            return null; // No se encontró ningún empleado con ese ID de usuario
+            return null; 
         }
         
     } catch (error) {
         console.error("Error al obtener empleado por ID de usuario:", error);
         throw error; 
     } finally {
-        client.release(); // 🔄 LIBERA LA CONEXIÓN
+        client.release(); 
     }
 }
 

@@ -7,6 +7,7 @@ const { verifyToken, checkPermission } = require('../middlewares/authMiddleware'
 // Ruta para API
 router.get('/listar', verifyToken, checkPermission('ver_empleado'), empleadosController.listar);
 router.get('/obtener-perfil', verifyToken, empleadosController.obtener_perfil);
+router.post('/cambiar-foto', verifyToken, empleadosController.cambiarFotoPerfil );
 //router.post('/actualizar', verifyToken, checkPermission('editar_empleado'), empleadosController.actualizar);
 router.post('/crear', verifyToken, checkPermission('crear_empleado'), empleadosController.crear);
 

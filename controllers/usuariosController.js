@@ -70,8 +70,32 @@ exports.crear = async (req, res) => {
   }
 };
 
-// Editar usuario
+// Editar (actualizar) usuario existente
 exports.editar = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const datosActualizados = req.body;
+
+    // 🔍 Llamamos al modelo para actualizar
+    const usuarioActualizado = await Usuario.actualizarUsuario(id, datosActualizados);
+
+    if (!usuarioActualizado) {
+      return res.status(404).json({ mensaje: 'Usuario no encontrado' });
+    }
+
+    res.json({
+      mensaje: 'Usuario actualizado correctamente',
+      usuario: usuarioActualizado
+    });
+
+  } catch (error) {
+    console.error('Error en editar usuario:', error);
+    res.status(500).json({ mensaje: 'Error al actualizar usuario' });
+  }
+};
+
+// Editar usuario
+/* exports.editar = async (req, res) => {
   try {
     console.log('Datos recibidos en el controller:', req.body);
     const { id } = req.params;
@@ -83,7 +107,7 @@ exports.editar = async (req, res) => {
     console.error(error);
     res.status(500).json({ mensaje: 'Error al actualizar usuario' });
   }
-};
+}; */
 
 //actualizar foto
 exports.actualizarFotoPerfil = async (req, res) => {  

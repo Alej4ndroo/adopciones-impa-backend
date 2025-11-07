@@ -191,35 +191,122 @@ async function crearUsuario(data) {
 }
 
 // UPDATE - Actualizar un usuario existente
-// Nota: Esto solo actualiza la tabla 'usuarios'.
-async function actualizarUsuario(id_usuario, datosActualizados) {
-  // Asegúrate de incluir id_rol si también se puede actualizar aquí
-  const { nombre, correo_electronico, fecha_nacimiento, telefono, id_rol } = datosActualizados;
-  
-  // Convertir a string YYYY-MM-DD
-  const fecha = fecha_nacimiento ? (fecha_nacimiento.split('T')[0] || fecha_nacimiento) : null;
+async function actualizarUsuario(id_usuario, data) {
+    const client = await db.connect();
 
-  // Construir la consulta dinámicamente (forma más segura)
-  // Pero para este ejemplo, asumimos que todos los campos vienen o se manejan.
-  // Por simplicidad, actualizo los campos de tu función original + id_rol
-  
-  const query = `
-    UPDATE usuarios
-    SET 
-      nombre = $1, 
-      correo_electronico = $2, 
-      fecha_nacimiento = $3, 
-      telefono = $4,
-      id_rol = $5, 
-      fecha_actualizacion = NOW()
-    WHERE id_usuario = $6
-    RETURNING *
-  `;
-  // Ajusta los valores según los campos que realmente quieras actualizar
-  const values = [nombre, correo_electronico, fecha, telefono, id_rol, id_usuario];
-  console.log('Valores para actualizarUsuario:', values);
-  const result = await db.query(query, values);
-  return result.rows[0];
+    try {
+        await client.query("BEGIN"); // Inicia transacción
+
+        // Desestructurar los posibles campos a actualizar
+        const {
+            // Datos del usuario
+            nombre,
+            correo_electronico,
+            contrasena,
+            fecha_nacimiento,
+            telefono,
+            foto_perfil_base64,
+            id_rol,
+            documentacion_verificada,
+            activo,
+
+            // Datos de la dirección
+            calle,
+            colonia,
+            codigo_postal,
+            ciudad,
+            estado,
+            pais,
+            tipo_direccion,
+            es_principal
+        } = data;
+
+        // ⚙️ Si viene una nueva contraseña, la hasheamos
+        let hashedPassword = null;
+        if (contrasena) {
+            hashedPassword = await bcrypt.hash(contrasena, 10);
+        }
+
+        // 🧩 Actualizar usuario
+        const updateUserQuery = `
+            UPDATE usuarios
+            SET 
+                nombre = COALESCE($1, nombre),
+                correo_electronico = COALESCE($2, correo_electronico),
+                contrasena = COALESCE($3, contrasena),
+                fecha_nacimiento = COALESCE($4, fecha_nacimiento),
+                telefono = COALESCE($5, telefono),
+                foto_perfil_base64 = COALESCE($6, foto_perfil_base64),
+                id_rol = COALESCE($7, id_rol),
+                documentacion_verificada = COALESCE($8, documentacion_verificada),
+                activo = COALESCE($9, activo),
+                fecha_actualizacion = NOW()
+            WHERE id_usuario = $10
+            RETURNING *;
+        `;
+
+        const userResult = await client.query(updateUserQuery, [
+            nombre || null,
+            correo_electronico || null,
+            hashedPassword || null,
+            fecha_nacimiento || null,
+            telefono || null,
+            foto_perfil_base64 || null,
+            id_rol || null,
+            documentacion_verificada || null,
+            activo !== undefined ? activo : null,
+            id_usuario
+        ]);
+
+        const usuarioActualizado = userResult.rows[0];
+
+        // 🏠 Si se incluyen datos de dirección, se actualiza
+        if (calle || colonia || codigo_postal || ciudad || estado || pais) {
+            const updateAddressQuery = `
+                UPDATE direcciones
+                SET 
+                    calle = COALESCE($1, calle),
+                    colonia = COALESCE($2, colonia),
+                    codigo_postal = COALESCE($3, codigo_postal),
+                    ciudad = COALESCE($4, ciudad),
+                    estado = COALESCE($5, estado),
+                    pais = COALESCE($6, pais),
+                    tipo_direccion = COALESCE($7, tipo_direccion),
+                    es_principal = COALESCE($8, es_principal)
+                WHERE id_usuario = $9
+                  AND es_principal = true
+                RETURNING *;
+            `;
+
+            const addressResult = await client.query(updateAddressQuery, [
+                calle || null,
+                colonia || null,
+                codigo_postal || null,
+                ciudad || null,
+                estado || null,
+                pais || null,
+                tipo_direccion || null,
+                es_principal !== undefined ? es_principal : true,
+                id_usuario
+            ]);
+
+            usuarioActualizado.direccion = addressResult.rows[0] || null;
+        }
+
+        await client.query("COMMIT");
+
+        return {
+            mensaje: "Usuario actualizado correctamente.",
+            usuario: usuarioActualizado
+        };
+
+    } catch (error) {
+        await client.query("ROLLBACK");
+        console.error("❌ Error al actualizar usuario. Se ejecutó ROLLBACK:", error);
+        throw error;
+    } finally {
+        client.release();
+    }
 }
 
 // (El resto de las funciones de actualización no necesitan joins)

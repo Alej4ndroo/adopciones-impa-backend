@@ -45,6 +45,42 @@ exports.crear = async (req, res) => {
   }
 };
 
+// Este es tu controlador anterior, pero corregido
+exports.cambiarFotoPerfil = async (req, res) => {
+  try {
+    // Usamos id_usuario, que SÍ tienes en el token
+    const id_usuario = req.usuario.id_usuario; 
+    const { foto_perfil_base64 } = req.body;
+
+    if (!foto_perfil_base64) {
+      return res.status(400).json({
+        error: 'No se proporcionó ninguna imagen (foto_perfil_base64 es requerida).',
+      });
+    }
+
+    const datosParaActualizar = { foto_perfil_base64 };
+
+    const resultado = await Empleado.actualizarEmpleado(
+      id_usuario,
+      datosParaActualizar
+    );
+
+    if (!resultado || !resultado.perfil) {
+      return res.status(404).json({
+        error: 'No se pudo actualizar la foto. Usuario no encontrado.',
+      });
+    }
+
+    res.status(200).json(resultado.perfil);
+
+  } catch (error) {
+    console.error('Error al cambiar foto de perfil:', error);
+    res.status(500).json({
+      error: 'Error interno al actualizar la foto',
+    });
+  }
+};
+
 exports.actualizar_perfil = async (req, res) => {
   try {
     const id_usuario = req.usuario.id_usuario;
@@ -99,10 +135,7 @@ exports.actualizar_perfil = async (req, res) => {
       });
     }
 
-    res.status(200).json({
-      mensaje: 'Perfil actualizado exitosamente',
-      ...perfilActualizado
-    });
+    res.status(200).json(resultado.perfil);
 
   } catch (error) {
     console.error('Error al actualizar perfil:', error);

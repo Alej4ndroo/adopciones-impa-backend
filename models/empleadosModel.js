@@ -118,7 +118,7 @@ async function obtenerPerfil(id_usuario) {
             u.id_usuario,
             u.nombre,
             u.correo_electronico,
-            u.fecha_nacimiento,
+            TO_CHAR(u.fecha_nacimiento, 'DD/MM/YYYY') AS fecha_nacimiento,
             u.telefono,
             u.foto_perfil_base64,
             u.id_rol,
@@ -320,55 +320,107 @@ async function crearEmpleado(data) {
 }
 
 // UPDATE - Actualizar un empleado existente
-async function actualizarEmpleado(id_empleado, datosActualizados) {
+async function actualizarEmpleado(id_usuario, data) {
     const client = await db.connect();
-    
+
     try {
-        await client.query('BEGIN');
-        
-        // Construir query dinámicamente
-        const campos = Object.keys(datosActualizados);
-        const valores = Object.values(datosActualizados);
-        const placeholders = campos.map((_, index) => `$${index + 2}`).join(', ');
-        const setClauses = campos.map((campo, index) => `${campo} = $${index + 2}`).join(', ');
-        
-        const updateQuery = `
-            UPDATE empleados 
-            SET ${setClauses}
-            WHERE id_empleado = $1
-            RETURNING *
+        await client.query("BEGIN");
+
+        const idEmpleadoResult = await client.query(
+            'SELECT id_empleado FROM empleados WHERE id_usuario = $1',
+            [id_usuario] 
+        );
+
+        if (idEmpleadoResult.rows.length === 0) {
+            throw new Error(`Empleado no encontrado con id_usuario: ${id_usuario}`);
+        }
+        const id_empleado = idEmpleadoResult.rows[0].id_empleado;
+
+        const {
+            nombre, correo_electronico, contrasena, fecha_nacimiento,
+            telefono, foto_perfil_base64, id_rol, documentacion_verificada,
+            activo: activoUsuario,
+            calle, colonia, codigo_postal, ciudad, estado, pais,
+            tipo_direccion, es_principal,
+            numero_empleado, fecha_contratacion, cedula_profesional,
+            licenciatura, especialidad,
+            activo: activoEmpleado
+        } = data;
+
+        let hashedPassword = null;
+        if (contrasena) {
+            hashedPassword = await bcrypt.hash(contrasena, 10);
+        }
+
+        const updateUserQuery = `
+            UPDATE usuarios SET 
+                nombre = COALESCE($1, nombre),
+                correo_electronico = COALESCE($2, correo_electronico),
+                contrasena = COALESCE($3, contrasena),
+                fecha_nacimiento = COALESCE($4, fecha_nacimiento),
+                telefono = COALESCE($5, telefono),
+                foto_perfil_base64 = COALESCE($6, foto_perfil_base64),
+                documentacion_verificada = COALESCE($7, documentacion_verificada),
+                activo = COALESCE($8, activo),
+                fecha_actualizacion = NOW()
+            WHERE id_usuario = $9;
         `;
+
+        await client.query(updateUserQuery, [
+            nombre || null, 
+            correo_electronico || null, 
+            hashedPassword || null,
+            fecha_nacimiento || null, 
+            telefono || null, 
+            foto_perfil_base64 || null,
+            documentacion_verificada || null,
+            activoUsuario !== undefined ? activoUsuario : null,
+            id_usuario
+        ]);
+
+        if (calle || colonia || codigo_postal || ciudad || estado || pais || tipo_direccion || es_principal !== undefined) {
+            await client.query(updateAddressQuery, [
+                id_usuario
+            ]);
+        }
+
+        if (numero_empleado || fecha_contratacion || cedula_profesional || licenciatura || especialidad || activoEmpleado !== undefined) {
+            await client.query(updateEmpleadoQuery, [
+                id_empleado 
+            ]);
+        }
         
-        await client.query(updateQuery, [id_empleado, ...valores]);
-        
-        // Obtener datos completos actualizados
         const selectQuery = `
             SELECT 
-                e.*,
-                json_build_object(
-                    'id_usuario', u.id_usuario,
-                    'nombre', u.nombre,
-                    'correo_electronico', u.correo_electronico,
-                    'telefono', u.telefono,
-                    'activo', u.activo
-                ) as usuarios
+                u.id_usuario, u.nombre, u.correo_electronico, TO_CHAR(u.fecha_nacimiento, 'DD/MM/YYYY') AS fecha_nacimiento,
+                u.telefono, u.foto_perfil_base64,
+                r.nombre_rol as nombre_rol,
+                e.id_empleado, e.numero_empleado, e.cedula_profesional, 
+                e.licenciatura, e.especialidad,
+                d.calle, d.colonia, d.codigo_postal, d.ciudad, d.estado, d.pais
             FROM empleados e
-            LEFT JOIN usuarios u ON e.id_usuario = u.id_usuario
-            WHERE e.id_empleado = $1
+            JOIN usuarios u ON e.id_usuario = u.id_usuario
+            LEFT JOIN roles r ON u.id_rol = r.id_rol
+            LEFT JOIN direcciones d ON u.id_usuario = d.id_usuario AND d.es_principal = TRUE
+            WHERE e.id_empleado = $1;
         `;
         
         const selectResult = await client.query(selectQuery, [id_empleado]);
-        
-        await client.query('COMMIT');
-        
+
+        await client.query("COMMIT");
+
         if (selectResult.rows.length === 0) {
-            throw new Error('Empleado no encontrado');
+            throw new Error('No se pudo encontrar el perfil completo después de la actualización.');
         }
-        
-        return selectResult.rows[0];
-        
+
+        return {
+            mensaje: "Perfil de empleado actualizado correctamente.",
+            perfil: selectResult.rows[0]
+        };
+
     } catch (error) {
-        await client.query('ROLLBACK');
+        await client.query("ROLLBACK");
+        console.error("❌ Error al actualizar empleado. Se ejecutó ROLLBACK:", error);
         throw error;
     } finally {
         client.release();

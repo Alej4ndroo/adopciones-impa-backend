@@ -6,8 +6,7 @@ const express = require('express');
 const cors = require('cors');
 
 // ==== MODELOS ====
-const Empleados = require('./models/empleadosModel');
-const Personas = require('./models/personasModel');
+const Usuario = require('./models/usuariosModel');
 
 // ==== RUTAS ====
 const loginRouter       = require('./routes/login');
@@ -75,40 +74,34 @@ app.get('/', (req, res) => {
 // ==================================
 // ESTADO DE USUARIO (con token JWT)
 // ==================================
+// ==================================
+// ESTADO DE USUARIO (con token JWT)
+// ==================================
 app.get('/user-status', verifyToken, async (req, res) => {
-  try {
-    const { id_usuario, nombre_rol, permisos = [] } = req.usuario;
-    const ES_ROL_EMPLEADO = rol => ['admin', 'director', 'veterinario'].includes(rol);
+  try {
+    const { id_usuario } = req.usuario;
 
-    const datosCompletos = ES_ROL_EMPLEADO(nombre_rol)
-      ? await Empleados.getEmpleadoPorUsuarioId(id_usuario)
-      : await Personas.getPersonaPorUsuarioId(id_usuario);
+    const datos = await Usuario.getDatosCompletosPorId(id_usuario);
 
-    if (!datosCompletos) {
-      return res.status(404).json({
-        loggedIn: false,
-        error: 'No se encontraron datos del usuario'
-      });
-    }
+    // 3. Verificamos si el usuario existe
+    if (!datos || !datos.usuario_completo) {
+      return res.status(404).json({
+        loggedIn: false,
+        error: 'No se encontraron datos del usuario'
+      });
+    }
 
-    const { usuarios = {}, ...datosAdicionales } = datosCompletos;
-    const { contrasena, ...usuarioSinPass } = usuarios;
+    const usuarioCompleto = datos.usuario_completo;
 
-    const usuarioCompleto = {
-      ...usuarioSinPass,
-      ...datosAdicionales,
-      foto_perfil_base64: usuarios.foto_perfil_base64,
-      permisos
-    };
+    res.json({
+      loggedIn: true,
+      usuario: usuarioCompleto
+    });
 
-    res.json({
-      loggedIn: true,
-      usuario: usuarioCompleto
-    });
-  } catch (error) {
-    console.error('Error en /user-status:', error);
-    res.status(500).json({ loggedIn: false, error: 'Error al obtener datos del usuario' });
-  }
+  } catch (error) {
+    console.error('Error en /user-status:', error);
+    res.status(500).json({ loggedIn: false, error: 'Error al obtener datos del usuario' });
+  }
 });
 
 // ==================================

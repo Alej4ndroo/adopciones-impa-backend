@@ -1,6 +1,91 @@
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 
+/**
+ * @param {number} id_usuario - El ID del usuario a buscar.
+ * @returns {Promise<object | null>} Un objeto con la propiedad 'usuario_completo' o null si no se encuentra.
+ * 
+ */
+async function getDatosCompletosPorId(id_usuario) {
+  const query = `
+    SELECT
+      -- Construye el objeto JSON principal del usuario
+      json_build_object(
+        'id_usuario', u.id_usuario,
+        'nombre', u.nombre,
+        'correo_electronico', u.correo_electronico,
+        'fecha_nacimiento', u.fecha_nacimiento,
+        'telefono', u.telefono,
+        'documentacion_verificada', u.documentacion_verificada,
+        'foto_perfil_base64', u.foto_perfil_base64,
+        'activo', u.activo,
+        'id_rol', u.id_rol,
+        
+        -- 1. Sub-objeto para el ROL
+        'rol', json_build_object(
+          'id_rol', r.id_rol,
+          'nombre_rol', r.nombre_rol
+        ),
+        
+        -- 2. Sub-objeto para datos de EMPLEADO (será null si no es empleado)
+        'empleado', (
+          SELECT json_build_object(
+            'id_empleado', emp.id_empleado,
+            'numero_empleado', emp.numero_empleado,
+            'fecha_contratacion', emp.fecha_contratacion,
+            'cedula_profesional', emp.cedula_profesional,
+            'licenciatura', emp.licenciatura,
+            'especialidad', emp.especialidad
+          )
+          FROM empleados emp
+          WHERE emp.id_usuario = u.id_usuario
+        ),
+        
+        -- 3. Array para las DIRECCIONES (será '[]' si no tiene)
+        'direcciones', (
+          SELECT COALESCE(json_agg(
+            json_build_object(
+              'id_direccion', d.id_direccion,
+              'calle', d.calle,
+              'colonia', d.colonia,
+              'codigo_postal', d.codigo_postal,
+              'ciudad', d.ciudad,
+              'estado', d.estado,
+              'pais', d.pais,
+              'tipo_direccion', d.tipo_direccion,
+              'es_principal', d.es_principal
+            )
+          ), '[]'::json)
+          FROM direcciones d
+          WHERE d.id_usuario = u.id_usuario
+        ),
+        
+        -- 4. Array para los PERMISOS (¡El requisito clave!)
+        --    Esto los trae frescos de la BD basados en el ROL
+        'permisos', (
+          SELECT COALESCE(json_agg(p.nombre_permiso), '[]'::json)
+          FROM roles_permisos rp
+          JOIN permisos p ON rp.id_permiso = p.id_permiso
+          WHERE rp.id_rol = u.id_rol
+        )
+      ) AS usuario_completo
+    FROM 
+      usuarios u
+    JOIN 
+      roles r ON u.id_rol = r.id_rol
+    WHERE 
+      u.id_usuario = $1;
+  `;
+  
+  try {
+    const { rows } = await db.query(query, [id_usuario]);
+    return rows[0] || null; // Devuelve el objeto completo o null
+  } catch (error) {
+    console.error('Error al obtener datos completos del usuario:', error);
+    throw error;
+  }
+};
+
 // READ - Obtener todos los usuarios (con rol y dirección principal)
 async function getUsuarios() {
   const query = `
@@ -413,6 +498,7 @@ async function existeCorreo(correo_electronico, excluirId = null) {
 }
 
 module.exports = {
+  getDatosCompletosPorId,
   getUsuarios,
   getUsuariosActivos,
   getUsuarioPorId,

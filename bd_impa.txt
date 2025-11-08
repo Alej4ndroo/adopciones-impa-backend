@@ -320,6 +320,9 @@ INSERT INTO roles (nombre_rol) VALUES
 
 -- Catálogo de permisos
 INSERT INTO permisos (nombre_permiso) VALUES
+
+('acceso_dashboard'),
+
 -- Usuarios
 ('crear_usuario'),
 ('editar_usuario'),
@@ -384,6 +387,8 @@ INSERT INTO roles_permisos (id_rol, id_permiso)
 SELECT r.id_rol, p.id_permiso
 FROM roles r
 JOIN permisos p ON p.nombre_permiso IN (
+  'acceso_dashboard',
+
   'ver_empleado',
 
   'crear_mascota','editar_mascota','eliminar_mascota','ver_mascota',
@@ -409,6 +414,8 @@ INSERT INTO roles_permisos (id_rol, id_permiso)
 SELECT r.id_rol, p.id_permiso
 FROM roles r
 JOIN permisos p ON p.nombre_permiso IN (
+  'acceso_dashboard',
+
   'ver_mascota',
 
   'crear_expediente','editar_expediente','ver_expediente',

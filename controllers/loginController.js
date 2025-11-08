@@ -1,9 +1,8 @@
-// controllers/loginController.js
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const Usuario = require('../models/usuariosModel'); // tu modelo
+const Usuario = require('../models/usuariosModel');
+const { getDatosCompletosPorId } = require('../models/usuariosModel'); // importa si está en el mismo archivo
 
-// POST /login
 exports.login = async (req, res) => {
   const { correo_electronico, contrasena } = req.body;
 
@@ -22,14 +21,12 @@ exports.login = async (req, res) => {
 
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'clave_secreta', { expiresIn: '1d' });
 
+    // 🔥 Aquí obtienes el usuario completo
+    const datosCompletos = await getDatosCompletosPorId(usuario.id_usuario);
+
     res.json({
       token,
-      usuario: {
-        id_usuario: usuario.id_usuario,
-        nombre: usuario.nombre,
-        nombre_rol: usuario.nombre_rol,
-        permisos: usuario.permisos || []
-      }
+      usuario: datosCompletos.usuario_completo // devuelve el JSON completo con la foto y todo
     });
   } catch (err) {
     console.error(err);

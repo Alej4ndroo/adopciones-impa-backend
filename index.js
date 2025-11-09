@@ -71,38 +71,6 @@ app.get('/', (req, res) => {
   res.json({ mensaje: 'API IMPA funcionando correctamente 🚀' });
 });
 
-// ==================================
-// ESTADO DE USUARIO (con token JWT)
-// ==================================
-// ==================================
-// ESTADO DE USUARIO (con token JWT)
-// ==================================
-app.get('/user-status', verifyToken, async (req, res) => {
-  try {
-    const { id_usuario } = req.usuario;
-
-    const datos = await Usuario.getDatosCompletosPorId(id_usuario);
-
-    // 3. Verificamos si el usuario existe
-    if (!datos || !datos.usuario_completo) {
-      return res.status(404).json({
-        loggedIn: false,
-        error: 'No se encontraron datos del usuario'
-      });
-    }
-
-    const usuarioCompleto = datos.usuario_completo;
-
-    res.json({
-      loggedIn: true,
-      usuario: usuarioCompleto
-    });
-
-  } catch (error) {
-    console.error('Error en /user-status:', error);
-    res.status(500).json({ loggedIn: false, error: 'Error al obtener datos del usuario' });
-  }
-});
 
 // ==================================
 // LOGOUT (solo borrando el token en frontend)

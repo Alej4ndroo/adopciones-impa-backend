@@ -4,8 +4,9 @@ const router = express.Router();
 const adopcionesController = require('../controllers/adopcionesController');
 
 router.get('/listar', adopcionesController.listar);
+router.get('/usuario/:id_usuario', adopcionesController.listarPorUsuario);
 router.patch('/:id/aprobar', adopcionesController.aprobar);
 router.patch('/:id/rechazar', adopcionesController.rechazar);
-router.patch('/contar', adopcionesController.contar);
+router.get('/contar', adopcionesController.contar);
 
 module.exports = router;

@@ -12,6 +12,31 @@ exports.listar = async (req, res) => {
   }
 };
 
+// Listar adopciones por usuario
+exports.listarPorUsuario = async (req, res) => {
+  try {
+    const { id_usuario } = req.params;
+
+    // Validar que el id sea numérico
+    if (!id_usuario || isNaN(id_usuario)) {
+      return res.status(400).json({ mensaje: 'ID de usuario inválido' });
+    }
+
+    // Llamar al método del modelo
+    const adopciones = await Adopcion.getAdopcionesPorUsuario(id_usuario);
+
+    // Si no encuentra adopciones
+    if (!adopciones || adopciones.length === 0) {
+      return res.status(404).json({ mensaje: 'No se encontraron adopciones para este usuario' });
+    }
+
+    res.json(adopciones);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: 'Error al obtener adopciones del usuario' });
+  }
+};
+
 // Listar todas las adopciones
 exports.contar = async (req, res) => {
   try {

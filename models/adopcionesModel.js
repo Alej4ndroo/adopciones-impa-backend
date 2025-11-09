@@ -27,8 +27,7 @@ const getAdopciones = async () => {
                 'id_usuario', u.id_usuario,
                 'nombre', u.nombre,
                 'correo_electronico', u.correo_electronico
-            ) AS usuario,  -- ❌ CAMBIADO: "Usuario" → "usuario" (minúscula para consistencia)
-                        -- ❌ ELIMINADO: Paréntesis extra que causaba error de sintaxis
+            ) AS usuario, 
             
             -- Objeto anidado del Usuario que procesó la solicitud
             json_build_object(
@@ -139,25 +138,32 @@ const getAdopcionPorId = async (id) => {
 /**
  * Obtiene todas las adopciones de una persona específica con datos anidados de la mascota.
  */
-const getAdopcionesPorPersona = async (idPersona) => {
-    const query = `
-        SELECT 
-            a.*,
-            json_build_object(
-                'id_mascota', m.id_mascota,
-                'nombre', m.nombre,
-                'especie', m.especie,
-                'raza', m.raza,
-            ) AS mascota
-        FROM adopciones a
-        LEFT JOIN mascotas m ON a.id_mascota = m.id_mascota
-        WHERE a.id_persona = $1
-        ORDER BY a.fecha_solicitud DESC
-    `;
-    
-    const result = await db.query(query, [idPersona]);
-    return result.rows;
+const getAdopcionesPorUsuario = async (id_usuario) => {
+  const query = `
+    SELECT 
+        a.id_adopcion,
+        a.fecha_solicitud,
+        a.estado,
+        a.estado_solicitud,
+        a.documentos_verificados,
+        a.fecha_entrega,
+        a.motivo_adopcion,
+        json_build_object(
+            'id_mascota', m.id_mascota,
+            'nombre', m.nombre,
+            'especie', m.especie,
+            'raza', m.raza
+        ) AS mascota
+    FROM adopciones a
+    LEFT JOIN mascotas m ON a.id_mascota = m.id_mascota
+    WHERE a.id_usuario = $1
+    ORDER BY a.fecha_solicitud DESC
+  `;
+
+  const result = await db.query(query, [id_usuario]);
+  return result.rows;
 };
+
 
 /**
  * Obtiene el historial de adopciones de una mascota, anidando la información del adoptante (persona/usuario) y el procesador.
@@ -600,7 +606,7 @@ module.exports = {
     getAdopciones,
     getAdopcionesPorEstado,
     getAdopcionPorId,
-    getAdopcionesPorPersona,
+    getAdopcionesPorUsuario,
     getAdopcionesPorMascota,
     getAdopcionesPendientesDocumentos,
     

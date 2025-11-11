@@ -164,7 +164,6 @@ const getAdopcionesPorUsuario = async (id_usuario) => {
   return result.rows;
 };
 
-
 /**
  * Obtiene el historial de adopciones de una mascota, anidando la información del adoptante (persona/usuario) y el procesador.
  */

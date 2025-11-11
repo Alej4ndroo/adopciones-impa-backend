@@ -12,6 +12,31 @@ exports.listar = async (req, res) => {
   }
 };
 
+// Listar citas por usuario
+exports.listarPorUsuario = async (req, res) => {
+  try {
+    const { id_usuario } = req.params;
+
+    // Validar que el id sea numérico
+    if (!id_usuario || isNaN(id_usuario)) {
+      return res.status(400).json({ mensaje: 'ID de usuario inválido' });
+    }
+
+    // Llamar al método del modelo
+    const citas = await Cita.getCitasPorUsuario(id_usuario);
+
+    // Si no encuentra citas
+    if (!citas || citas.length === 0) {
+      return res.status(404).json({ mensaje: 'No se encontraron citas para este usuario' });
+    }
+
+    res.json(citas);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: 'Error al obtener citas del usuario' });
+  }
+};
+
 // Crear una nueva cita
 exports.crear = async (req, res) => {
   try {

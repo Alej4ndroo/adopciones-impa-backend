@@ -72,8 +72,8 @@ async function getCitasProgramadas() {
   return result.rows;
 }
 
-// READ - Obtener cita por ID
-async function getCitaPorId(id_cita) {
+// READ - Obtener TODAS las citas por id_usuario
+async function getCitasPorUsuario(id_usuario) {
   const query = `
     SELECT 
       c.*,
@@ -107,10 +107,11 @@ async function getCitaPorId(id_cita) {
     LEFT JOIN empleados e ON c.id_empleado = e.id_empleado
     LEFT JOIN usuarios u_emp ON e.id_usuario = u_emp.id_usuario
     LEFT JOIN servicios s ON c.id_servicio = s.id_servicio
-    WHERE c.id_cita = $1
+    WHERE c.id_usuario = $1 
+    ORDER BY c.fecha_cita DESC
   `;
-  const result = await db.query(query, [id_cita]);
-  return result.rows[0];
+  const result = await db.query(query, [id_usuario]);
+  return result.rows;
 }
 
 // CREATE - Crear una nueva cita
@@ -190,26 +191,6 @@ async function eliminarCita(id_cita) {
   `;
   const result = await db.query(query, [id_cita]);
   return result.rows[0];
-}
-
-// SEARCH - Buscar citas por usuario (cliente)
-async function getCitasPorUsuario(id_usuario) {
-  const query = `
-    SELECT 
-      c.*,
-      m.nombre AS mascota_nombre,
-      s.nombre AS servicio_nombre,
-      u_emp.nombre AS empleado_nombre
-    FROM citas c
-    LEFT JOIN mascotas m ON c.id_mascota = m.id_mascota
-    LEFT JOIN servicios s ON c.id_servicio = s.id_servicio
-    LEFT JOIN empleados e ON c.id_empleado = e.id_empleado
-    LEFT JOIN usuarios u_emp ON e.id_usuario = u_emp.id_usuario
-    WHERE c.id_usuario = $1
-    ORDER BY c.fecha_cita DESC
-  `;
-  const result = await db.query(query, [id_usuario]);
-  return result.rows;
 }
 
 // SEARCH - Buscar citas por empleado (veterinario/recepcionista)
@@ -297,11 +278,10 @@ module.exports = {
   getCitas,
   getCitasProgramadas,
   countCitasHoy,
-  getCitaPorId,
+  getCitasPorUsuario,
   crearCita,
   actualizarCita,
   eliminarCita,
-  getCitasPorUsuario,
   getCitasPorEmpleado,
   getCitasPorMascota,
   getCitasPorRangoFechas,

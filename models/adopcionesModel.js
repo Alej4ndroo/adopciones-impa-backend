@@ -247,40 +247,43 @@ const getAdopcionesPendientesDocumentos = async () => {
 /**
  * Crea una nueva solicitud de adopción
  */
-const crearSolicitudAdopcion = async (datosAdopcion) => {
-    const {
-        id_persona,
-        id_mascota,
-        motivo_adopcion,
-        ubicacion_en_hogar,
-        observaciones
-    } = datosAdopcion;
-    
-    const query = `
-        INSERT INTO adopciones (
-            id_persona,
-            id_mascota,
-            motivo_adopcion,
-            ubicacion_en_hogar,
-            observaciones,
-            estado,
-            estado_solicitud,
-            documentos_verificados
-        ) VALUES ($1, $2, $3, $4, $5, 'en_proceso', 'en_revision', FALSE)
-        RETURNING *
-    `;
-    
-    const values = [
-        id_persona,
-        id_mascota,
-        motivo_adopcion,
-        ubicacion_en_hogar,
-        observaciones
-    ];
-    
+async function crearAdopcion(datosAdopcion) {
+  const {
+    id_usuario,       
+    id_mascota,       
+    motivo_adopcion = null,
+    ubicacion_en_hogar = null,
+    observaciones = null 
+  } = datosAdopcion;
+
+  const query = `
+    INSERT INTO adopciones (
+      id_usuario, 
+      id_mascota, 
+      motivo_adopcion, 
+      ubicacion_en_hogar,
+      observaciones
+    )
+    VALUES ($1, $2, $3, $4, $5)
+    RETURNING *
+  `;
+  
+  const values = [
+    id_usuario,
+    id_mascota,
+    motivo_adopcion,
+    ubicacion_en_hogar,
+    observaciones // Valor añadido
+  ];
+
+  try {
     const result = await db.query(query, values);
-    return result.rows[0];
-};
+    return result.rows[0]; // Devuelve la fila recién creada
+  } catch (error) {
+    console.error("Error al crear la adopción:", error);
+    throw error;
+  }
+}
 
 // ==================== UPDATE OPERATIONS ====================
 
@@ -610,7 +613,7 @@ module.exports = {
     getAdopcionesPendientesDocumentos,
     
     // CREATE operations
-    crearSolicitudAdopcion,
+    crearAdopcion,
     
     // UPDATE operations
     actualizarAdopcion,

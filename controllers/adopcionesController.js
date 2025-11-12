@@ -37,6 +37,24 @@ exports.listarPorUsuario = async (req, res) => {
   }
 };
 
+// Crear una nueva solicitud de adopción
+exports.crear = async (req, res) => {
+  try {
+    const datosAdopcion = req.body;
+
+    if (!datosAdopcion.id_usuario || !datosAdopcion.id_mascota) {
+      return res.status(400).json({ mensaje: 'Faltan datos (id_usuario o id_mascota)' });
+    }
+
+    const nuevaAdopcion = await Adopcion.crearAdopcion(datosAdopcion);
+    
+    res.status(201).json(nuevaAdopcion);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: 'Error al crear la solicitud de adopción' });
+  }
+};
+
 // Listar todas las adopciones
 exports.contar = async (req, res) => {
   try {

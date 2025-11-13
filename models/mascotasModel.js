@@ -147,6 +147,8 @@ async function crearMascota(mascotaData) {
         color,
         tamano,
         sexo,
+        esterilizado = false,
+        vacunado = false,  
         descripcion = null,
         estado_adopcion = 'disponible',
         fecha_ingreso = new Date().toISOString().split('T')[0],
@@ -162,16 +164,16 @@ async function crearMascota(mascotaData) {
         const queryMascota = `
             INSERT INTO mascotas (
                 nombre, especie, raza, edad_en_meses, color, tamano, 
-                sexo, descripcion, estado_adopcion, fecha_ingreso, 
+                sexo, esterilizado, vacunado, descripcion, estado_adopcion, fecha_ingreso, 
                 creado_por, activo
             ) 
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             RETURNING id_mascota
         `;
 
         const valuesMascota = [
             nombre, especie, raza, edad_en_meses, color, tamano,
-            sexo, descripcion, estado_adopcion, fecha_ingreso,
+            sexo, esterilizado, vacunado, descripcion, estado_adopcion, fecha_ingreso,
             creado_por, activo
         ];
 

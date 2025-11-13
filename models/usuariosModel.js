@@ -382,7 +382,7 @@ async function actualizarUsuario(id_usuario, data) {
 
         return {
             mensaje: "Usuario actualizado correctamente.",
-            usuario: usuarioActualizado
+            perfil: usuarioActualizado
         };
 
     } catch (error) {

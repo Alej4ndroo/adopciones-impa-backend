@@ -83,10 +83,7 @@ exports.editar = async (req, res) => {
       return res.status(404).json({ mensaje: 'Usuario no encontrado' });
     }
 
-    res.json({
-      mensaje: 'Usuario actualizado correctamente',
-      usuario: usuarioActualizado
-    });
+    res.status(200).json(resultado.perfil);
 
   } catch (error) {
     console.error('Error en editar usuario:', error);
@@ -94,52 +91,67 @@ exports.editar = async (req, res) => {
   }
 };
 
-// Editar usuario
-/* exports.editar = async (req, res) => {
+exports.actualizar_perfil = async (req, res) => {
   try {
-    console.log('Datos recibidos en el controller:', req.body);
-    const { id } = req.params;
-    const id_usuario = Number(id);
-    const datos = req.body;
-    const usuarioActualizado = await Usuario.actualizarUsuario(id_usuario, datos);
-    res.json(usuarioActualizado);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ mensaje: 'Error al actualizar usuario' });
-  }
-}; */
+    const id_usuario = req.usuario.id_usuario;
+    const datosActualizados = req.body;
 
-//actualizar foto
-exports.actualizarFotoPerfil = async (req, res) => {  
-  console.log('Iniciando actualizarFotoPerfil...');
-  try {
-    console.log('req.body:', req.body);
-    console.log('req.file:', req.file);
-
-    const { id_usuario } = req.body;
-    const tempFile = req.file; 
-
-    if (!id_usuario || !tempFile) {
-      return res.status(400).json({ ok: false, mensaje: 'Faltan datos (id_usuario o archivo).' });
+    // Validar que haya datos para actualizar
+    if (!datosActualizados || Object.keys(datosActualizados).length === 0) {
+      return res.status(400).json({ 
+        error: 'No se proporcionaron datos para actualizar' 
+      });
     }
 
-    //nombre de archivo final y la ruta
-    const extension = path.extname(tempFile.originalname);
-    const nombreFinal = `foto_perfil.${id_usuario}${extension}`;
-    const rutaFinal = path.join(tempFile.destination, nombreFinal);
+    // Campos permitidos para actualizar
+    const camposPermitidos = [
+      'nombre',
+      'correo_electronico',
+      'telefono',
+      'fecha_nacimiento',
+      'calle',
+      'colonia',
+      'codigo_postal',
+      'ciudad',
+      'estado',
+      'pais',
+      'foto_perfil_base64'
+    ];
 
-    //archivo temporal al nombre final
-    fs.renameSync(tempFile.path, rutaFinal);
-    console.log(`Archivo renombrado de ${tempFile.filename} a ${nombreFinal}`);
+    // Filtrar solo los campos permitidos
+    const datosParaActualizar = {};
+    for (const campo of camposPermitidos) {
+      if (datosActualizados.hasOwnProperty(campo)) {
+        datosParaActualizar[campo] = datosActualizados[campo];
+      }
+    }
 
-    //guardar la URL final en la base de datos
-    const url_foto = `/img/${nombreFinal}`;
-    const usuarioActualizado = await Usuario.actualizarFotoPerfil(id_usuario, url_foto);
+    // Verificar que haya al menos un campo permitido para actualizar
+    if (Object.keys(datosParaActualizar).length === 0) {
+      return res.status(400).json({ 
+        error: 'No se proporcionaron campos válidos para actualizar' 
+      });
+    }
 
-    res.json({ ok: true, usuario: usuarioActualizado, url_foto: url_foto });
+    // Actualizar el perfil
+    const perfilActualizado = await Usuario.actualizarUsuario(
+      id_usuario, 
+      datosParaActualizar
+    );
+
+    if (!perfilActualizado) {
+      return res.status(404).json({ 
+        error: 'No se pudo actualizar el perfil' 
+      });
+    }
+
+    res.status(200).json(perfilActualizado.perfil);
+
   } catch (error) {
-    console.error('Error en el controlador actualizarFotoPerfil:', error);
-    res.status(500).json({ ok: false, error: error.message });
+    console.error('Error al actualizar perfil:', error);
+    res.status(500).json({ 
+      error: 'Error al actualizar el perfil del usuario' 
+    });
   }
 };
 

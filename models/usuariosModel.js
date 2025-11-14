@@ -21,13 +21,11 @@ async function getDatosCompletosPorId(id_usuario) {
         'activo', u.activo,
         'id_rol', u.id_rol,
         
-        -- 1. Sub-objeto para el ROL
         'rol', json_build_object(
           'id_rol', r.id_rol,
           'nombre_rol', r.nombre_rol
         ),
         
-        -- 2. Sub-objeto para datos de EMPLEADO (será null si no es empleado)
         'empleado', (
           SELECT json_build_object(
             'id_empleado', emp.id_empleado,
@@ -41,7 +39,6 @@ async function getDatosCompletosPorId(id_usuario) {
           WHERE emp.id_usuario = u.id_usuario
         ),
         
-        -- 3. Array para las DIRECCIONES (será '[]' si no tiene)
         'direcciones', (
           SELECT COALESCE(json_agg(
             json_build_object(
@@ -60,8 +57,6 @@ async function getDatosCompletosPorId(id_usuario) {
           WHERE d.id_usuario = u.id_usuario
         ),
         
-        -- 4. Array para los PERMISOS (¡El requisito clave!)
-        --    Esto los trae frescos de la BD basados en el ROL
         'permisos', (
           SELECT COALESCE(json_agg(p.nombre_permiso), '[]'::json)
           FROM roles_permisos rp
@@ -79,7 +74,7 @@ async function getDatosCompletosPorId(id_usuario) {
   
   try {
     const { rows } = await db.query(query, [id_usuario]);
-    return rows[0] || null; // Devuelve el objeto completo o null
+    return rows[0] || null;
   } catch (error) {
     console.error('Error al obtener datos completos del usuario:', error);
     throw error;
@@ -154,7 +149,7 @@ async function getUsuarioPorId(id_usuario) {
 async function getUsuarioPorCorreo(correo_electronico) {
   const query = `
     SELECT 
-      u.*, -- Traer todo de la tabla usuarios
+      u.*,
       r.nombre_rol,
       ARRAY_AGG(DISTINCT p.nombre_permiso) AS permisos,
       (
@@ -168,14 +163,14 @@ async function getUsuarioPorCorreo(correo_electronico) {
     LEFT JOIN permisos p ON rp.id_permiso = p.id_permiso
     WHERE u.correo_electronico = $1
     GROUP BY 
-      u.id_usuario, -- Agrupar por la PK es suficiente para incluir todos los campos de u.*
+      u.id_usuario,
       r.id_rol, r.nombre_rol;
   `;
   const result = await db.query(query, [correo_electronico]);
   return result.rows[0];
 }
 
-// CREATE - Crear una nueva persona
+// CREATE - Crear un nuevo usuario
 async function crearUsuario(data) {
     const {
         // Datos de USUARIO
@@ -189,7 +184,7 @@ async function crearUsuario(data) {
         documentacion_verificada = "pendiente",
         activo = true,
 
-        // Datos de DIRECCIÓN
+        // Datos de DIRECCIÓN (opcionales)
         calle,
         colonia,
         codigo_postal,
@@ -232,29 +227,37 @@ async function crearUsuario(data) {
 
         const newUser = userResult.rows[0];
 
-        // 3️⃣ Insertar dirección principal
-        const addressInsertQuery = `
-            INSERT INTO direcciones (
-                id_usuario, calle, colonia, codigo_postal, ciudad, 
-                estado, pais, tipo_direccion, es_principal
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING id_direccion
-        `;
+        // --- INICIO DE LA MODIFICACIÓN ---
+        
+        let newAddress = null; // Inicializamos la dirección como nula
 
-        const addressResult = await client.query(addressInsertQuery, [
-            newUser.id_usuario,
-            calle,
-            colonia,
-            codigo_postal,
-            ciudad,
-            estado,
-            pais,
-            tipo_direccion,
-            es_principal
-        ]);
+        // 3️⃣ Insertar dirección principal (SOLO SI SE PROPORCIONAN DATOS)
+        //    Usamos 'calle' como el indicador principal de que vienen datos de dirección.
+        if (calle) {
+            const addressInsertQuery = `
+                INSERT INTO direcciones (
+                    id_usuario, calle, colonia, codigo_postal, ciudad, 
+                    estado, pais, tipo_direccion, es_principal
+                )
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                RETURNING id_direccion
+            `;
 
-        const newAddress = addressResult.rows[0];
+            const addressResult = await client.query(addressInsertQuery, [
+                newUser.id_usuario,
+                calle,
+                colonia,
+                codigo_postal,
+                ciudad,
+                estado,
+                pais,
+                tipo_direccion,
+                es_principal
+            ]);
+            
+            newAddress = addressResult.rows[0];
+        }
+        // --- FIN DE LA MODIFICACIÓN ---
 
         // 4️⃣ Confirmar transacción
         await client.query("COMMIT");
@@ -263,7 +266,7 @@ async function crearUsuario(data) {
         return {
             mensaje: "Usuario creado correctamente.",
             usuario: newUser,
-            direccion: newAddress
+            direccion: newAddress // Devolverá null si no se creó una dirección
         };
 
     } catch (error) {

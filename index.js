@@ -5,12 +5,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 
-// ==== MODELOS ====
-const Usuario = require('./models/usuariosModel');
-
 // ==== RUTAS ====
-const loginRouter       = require('./routes/login');
-const perfilRouter      = require('./routes/perfil');
+const authRouter        = require('./routes/auth');
 const homeRouter        = require('./routes/home');
 const usuariosRouter    = require('./routes/usuarios');
 const personasRouter    = require('./routes/personas');
@@ -21,9 +17,6 @@ const adopcionesRouter  = require('./routes/adopciones');
 const consultasRouter   = require('./routes/consultas');
 const seguimientosAdopcionRouter = require('./routes/seguimientosAdopcion');
 const serviciosRouter   = require('./routes/servicios');
-
-// ==== MIDDLEWARE DE AUTENTICACIÓN ====
-const { verifyToken } = require('./middlewares/authMiddleware');
 
 // ==== APP ====
 const app = express();
@@ -51,8 +44,7 @@ app.use(express.static('public')); // Archivos estáticos (si los tienes)
 // ==================================
 // RUTAS
 // ==================================
-app.use('/login', loginRouter);
-app.use('/perfil', perfilRouter);
+app.use('/auth', authRouter);
 app.use('/home', homeRouter);
 app.use('/usuarios', usuariosRouter);
 app.use('/personas', personasRouter);

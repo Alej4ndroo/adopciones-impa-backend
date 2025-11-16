@@ -449,19 +449,22 @@ INSERT INTO usuarios (nombre, correo_electronico, contrasena, fecha_nacimiento, 
 ('Antonio Emiliano Garcia Dominguez', 'antonio@impa.gov.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '2004-03-18', '4433680109', '3'),
 ('Eduardo Osvaldo Rodriguez Gutierrez', 'eduardo@impa.gov.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '2004-10-27', '4433723548', '3');
 
--- Insertar empleados
-INSERT INTO empleados (id_usuario, cedula_profesional, fecha_contratacion, activo)
-SELECT id_usuario, '12457896', CURRENT_DATE, true
-FROM usuarios WHERE correo_electronico = 'admin@impa.gov.mx'
-UNION ALL
-SELECT id_usuario, '10234567', CURRENT_DATE, true
-FROM usuarios WHERE correo_electronico = 'director@impa.gov.mx'
-UNION ALL
-SELECT id_usuario, '12365498', CURRENT_DATE, true
-FROM usuarios WHERE correo_electronico = 'antonio@impa.gov.mx'
-UNION ALL
-SELECT id_usuario, '32198746', CURRENT_DATE, true
-FROM usuarios WHERE correo_electronico = 'eduardo@impa.gov.mx';
+INSERT INTO direcciones
+(id_usuario, calle, colonia, codigo_postal, ciudad, estado, pais, tipo_direccion, es_principal)
+VALUES
+(1, 'Calle Reforma 120', 'Centro', '58000', 'Morelia', 'Michoacán', 'México', 'domicilio', TRUE),
+(2, 'Av. Insurgentes 450', 'Chapultepec Norte', '58260', 'Morelia', 'Michoacán', 'México', 'domicilio', TRUE),
+(3, 'Privada del Sol 34', 'Las Américas', '58270', 'Morelia', 'Michoacán', 'México', 'domicilio', TRUE),
+(4, 'Calle Magnolia 89', 'Villa Universidad', '58060', 'Morelia', 'Michoacán', 'México', 'domicilio', TRUE),
+(5, 'Av. Camelinas 1234', 'Lomas de Morelia', '58290', 'Morelia', 'Michoacán', 'México', 'domicilio', TRUE);
+
+INSERT INTO empleados
+(id_usuario, numero_empleado, fecha_contratacion, cedula_profesional, licenciatura, especialidad, activo)
+VALUES
+(1, 'EMP-001', CURRENT_DATE, 10234567, 'Administración', 'Gestión Operativa', TRUE),
+(2, 'EMP-002', CURRENT_DATE, '12345678', 'Administración Pública', 'Dirección General', TRUE),
+(3, 'EMP-003', CURRENT_DATE, 32198746, 'Médico Veterinario Zootecnista', 'Diagnóstico por imagen', TRUE),
+(3, 'EMP-003', CURRENT_DATE, 32198746, 'Médico Veterinario Zootecnista', 'Medicina preventiva y nutrición', TRUE);
 
 INSERT INTO servicios (nombre, descripcion, costo_base, duracion_estimada_min, requiere_mascota) VALUES
 ('Cita de Adopción', 'Entrevista para proceso de adopción', 0.00, 45, FALSE),
@@ -470,25 +473,3 @@ INSERT INTO servicios (nombre, descripcion, costo_base, duracion_estimada_min, r
 ('Esterilización', 'Cirugía de esterilización', 800.00, 120, TRUE),
 ('Seguimiento Post-Adopción', 'Visita de seguimiento', 0.00, 60, TRUE),
 ('Desparasitación', 'Tratamiento antiparasitario', 100.00, 20, TRUE);
-
--- Usuarios Empleados veterinarios
-INSERT INTO usuarios (nombre, correo_electronico, contrasena, fecha_nacimiento, telefono, id_rol) VALUES
-('Daniela Rivera', 'd.rivera@impa.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '2000-02-24', '443-123-4567', 3),
-('Javier Gómez', 'j.gomez@impa.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '2001-02-14', '443-765-4321', 3),
-('Laura Martínez', 'l.martinez@impa.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '1999-03-22', '443-890-1234', 3),
-('Esteban Pérez', 'e.perez@impa.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '1998-04-01', '443-555-0101', 3),
-('Mónica Sánchez', 'm.sanchez@impa.mx', '$2b$10$ikcwIw6VFJ1fjLqICRksd.5KJ0ynh7y6hVp1D4rjRKtuo6i94d2Q.', '1997-05-29', '443-555-0103', 3);
-
--- Insertar empleados veterinarios
-INSERT INTO empleados (id_usuario, cedula_profesional, fecha_contratacion, licenciatura, especialidad, activo)
-SELECT id_usuario, '1234567', CURRENT_DATE, 'Médico Veterinario Zootecnista', 'Medicina preventiva y nutrición', true
-FROM usuarios WHERE correo_electronico = 'd.rivera@impa.mx'
-UNION ALL
-SELECT id_usuario, '7654321', CURRENT_DATE, 'Médico Veterinario Zootecnista', 'Diagnóstico por imagen', true
-FROM usuarios WHERE correo_electronico = 'j.gomez@impa.mx'
-UNION ALL
-SELECT id_usuario, '8901234', CURRENT_DATE, 'Médico Veterinario Zootecnista', 'Cirugía y analgesia', true
-FROM usuarios WHERE correo_electronico = 'l.martinez@impa.mx'
-UNION ALL
-SELECT id_usuario, null, CURRENT_DATE, 'Asistente Veterinario', 'Manejo y cuidado de pacientes', true
-FROM usuarios WHERE correo_electronico = 'e.perez@impa.mx'

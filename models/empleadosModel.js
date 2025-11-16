@@ -10,15 +10,24 @@ async function getEmpleados() {
                 'id_usuario', u.id_usuario,
                 'nombre', u.nombre,
                 'correo_electronico', u.correo_electronico,
+                'foto_perfil_base64', u.foto_perfil_base64,
                 'telefono', u.telefono,
                 'activo', u.activo,
                 'fecha_creacion', u.fecha_creacion
-            ) as usuarios
+            ) as usuario,
+            json_build_object(
+                'calle', d.calle,
+                'colonia', d.colonia,
+                'codigo_postal', d.codigo_postal,
+                'ciudad', d.ciudad,
+                'estado', d.estado
+            ) as direccion
         FROM empleados e
         LEFT JOIN usuarios u ON e.id_usuario = u.id_usuario
+        LEFT JOIN direcciones d ON u.id_usuario = d.id_usuario AND d.es_principal = true
         ORDER BY e.fecha_contratacion DESC
     `;
-    
+
     const result = await db.query(query);
     return result.rows;
 }
@@ -41,7 +50,7 @@ async function getVeterinarios() {
         WHERE u.id_rol = 3 AND u.activo = TRUE -- Filtra por rol de veterinario (id=3)
         ORDER BY u.nombre;
     `;
-    
+
     const result = await db.query(query);
     return result.rows;
 }
@@ -64,7 +73,7 @@ async function getEmpleadosActivos() {
         WHERE u.activo = true
         ORDER BY e.fecha_contratacion DESC
     `;
-    
+
     const result = await db.query(query);
     return result.rows;
 }
@@ -90,7 +99,7 @@ async function getEmpleadoPorUsuarioId(id_usuario) {
         JOIN roles r ON u.id_rol = r.id_rol
         WHERE e.id_usuario = $1 AND u.activo = true
     `;
-    
+
     const result = await db.query(query, [id_usuario]);
     if (result.rows.length === 0) {
         throw new Error('Empleado no encontrado');
@@ -105,7 +114,7 @@ async function getEmpleadoPorUsuarioId(id_usuario) {
  */
 async function obtenerPerfil(id_usuario) {
     const client = await db.connect();
-    
+
     const selectQuery = `
         SELECT 
             e.id_empleado,
@@ -141,18 +150,18 @@ async function obtenerPerfil(id_usuario) {
 
     try {
         const result = await client.query(selectQuery, [id_usuario]);
-        
+
         if (result.rows.length > 0) {
             return result.rows[0];
         } else {
-            return null; 
+            return null;
         }
-        
+
     } catch (error) {
         console.error("Error al obtener empleado por ID de usuario:", error);
-        throw error; 
+        throw error;
     } finally {
-        client.release(); 
+        client.release();
     }
 }
 
@@ -172,7 +181,7 @@ async function getEmpleadoPorNumero(numero_empleado) {
         LEFT JOIN usuarios u ON e.id_usuario = u.id_usuario
         WHERE e.numero_empleado = $1
     `;
-    
+
     const result = await db.query(query, [numero_empleado]);
     if (result.rows.length === 0) {
         throw new Error('Empleado no encontrado');
@@ -198,7 +207,7 @@ async function crearEmpleado(data) {
         id_rol, // Requerido
         documentacion_verificada = 'pendiente',
         activo = true,
-        
+
         // Datos de DIRECCIONES (Tabla 2) - Se asume que es la dirección principal
         calle,
         colonia,
@@ -218,7 +227,7 @@ async function crearEmpleado(data) {
     } = data;
 
     const client = await db.connect();
-    
+
     try {
         await client.query('BEGIN'); // 🚩 INICIA LA TRANSACCIÓN
 
@@ -235,7 +244,7 @@ async function crearEmpleado(data) {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING id_usuario, nombre
         `;
-        
+
         const userResult = await client.query(userInsertQuery, [
             nombre,
             correo_electronico,
@@ -247,7 +256,7 @@ async function crearEmpleado(data) {
             activo,
             documentacion_verificada
         ]);
-        
+
         const newUserId = userResult.rows[0].id_usuario;
 
         // 3. 🏠 Insertar en la tabla 'direcciones'
@@ -259,7 +268,7 @@ async function crearEmpleado(data) {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING id_direccion
         `;
-        
+
         await client.query(addressInsertQuery, [
             newUserId,
             calle,
@@ -282,7 +291,7 @@ async function crearEmpleado(data) {
             VALUES ($1, $2, NOW(), $3, $4, $5, $6)
             RETURNING id_empleado
         `;
-        
+
         const employeeResult = await client.query(employeeInsertQuery, [
             newUserId,
             numero_empleado,
@@ -291,7 +300,7 @@ async function crearEmpleado(data) {
             especialidad,
             activo
         ]);
-        
+
         const newEmployeeId = employeeResult.rows[0].id_empleado;
 
         // 5. Obtener y Devolver el registro completo
@@ -304,12 +313,12 @@ async function crearEmpleado(data) {
             JOIN usuarios u ON e.id_usuario = u.id_usuario
             WHERE e.id_empleado = $1
         `;
-        
+
         const selectResult = await client.query(selectQuery, [newEmployeeId]);
-        
+
         await client.query('COMMIT'); // ✅ CONFIRMA LA TRANSACCIÓN
         return selectResult.rows[0];
-        
+
     } catch (error) {
         await client.query('ROLLBACK'); // ❌ DESHACE TODO SI ALGO FALLA
         console.error("Error al crear empleado. Se ejecutó ROLLBACK.", error);
@@ -328,7 +337,7 @@ async function actualizarEmpleado(id_usuario, data) {
 
         const idEmpleadoResult = await client.query(
             'SELECT id_empleado FROM empleados WHERE id_usuario = $1',
-            [id_usuario] 
+            [id_usuario]
         );
 
         if (idEmpleadoResult.rows.length === 0) {
@@ -367,11 +376,11 @@ async function actualizarEmpleado(id_usuario, data) {
         `;
 
         await client.query(updateUserQuery, [
-            nombre || null, 
-            correo_electronico || null, 
+            nombre || null,
+            correo_electronico || null,
             hashedPassword || null,
-            fecha_nacimiento || null, 
-            telefono || null, 
+            fecha_nacimiento || null,
+            telefono || null,
             foto_perfil_base64 || null,
             documentacion_verificada || null,
             activoUsuario !== undefined ? activoUsuario : null,
@@ -386,10 +395,10 @@ async function actualizarEmpleado(id_usuario, data) {
 
         if (numero_empleado || fecha_contratacion || cedula_profesional || licenciatura || especialidad || activoEmpleado !== undefined) {
             await client.query(updateEmpleadoQuery, [
-                id_empleado 
+                id_empleado
             ]);
         }
-        
+
         const selectQuery = `
             SELECT 
                 u.id_usuario, u.nombre, u.correo_electronico, TO_CHAR(u.fecha_nacimiento, 'DD/MM/YYYY') AS fecha_nacimiento,
@@ -404,7 +413,7 @@ async function actualizarEmpleado(id_usuario, data) {
             LEFT JOIN direcciones d ON u.id_usuario = d.id_usuario AND d.es_principal = TRUE
             WHERE e.id_empleado = $1;
         `;
-        
+
         const selectResult = await client.query(selectQuery, [id_empleado]);
 
         await client.query("COMMIT");
@@ -434,7 +443,7 @@ async function eliminarEmpleado(id_empleado) {
         WHERE id_empleado = $1 
         RETURNING *
     `;
-    
+
     const result = await db.query(query, [id_empleado]);
     if (result.rows.length === 0) {
         throw new Error('Empleado no encontrado');
@@ -459,7 +468,7 @@ async function getEmpleadosPorCargo(licenciatura) {
         WHERE e.licenciatura ILIKE $1 AND u.activo = true
         ORDER BY e.fecha_contratacion DESC
     `;
-    
+
     const result = await db.query(query, [`%${licenciatura}%`]);
     return result.rows;
 }
@@ -481,7 +490,7 @@ async function buscarEmpleadosPorNombre(nombre) {
         WHERE u.nombre ILIKE $1 AND u.activo = true
         ORDER BY u.nombre
     `;
-    
+
     const result = await db.query(query, [`%${nombre}%`]);
     return result.rows;
 }
@@ -494,12 +503,12 @@ async function existeNumeroEmpleado(numero_empleado, excluirId = null) {
         WHERE numero_empleado = $1
     `;
     let params = [numero_empleado];
-    
+
     if (excluirId) {
         query += ` AND id_empleado != $2`;
         params.push(excluirId);
     }
-    
+
     const result = await db.query(query, params);
     return result.rows.length > 0;
 }
@@ -507,7 +516,7 @@ async function existeNumeroEmpleado(numero_empleado, excluirId = null) {
 // UTILITY - Generar número de empleado automático
 async function generarNumeroEmpleado() {
     const año = new Date().getFullYear().toString().slice(-2);
-    
+
     // Obtener el último número de empleado del año actual
     const query = `
         SELECT numero_empleado 
@@ -516,16 +525,16 @@ async function generarNumeroEmpleado() {
         ORDER BY numero_empleado DESC 
         LIMIT 1
     `;
-    
+
     const result = await db.query(query, [`${año}%`]);
-    
+
     let siguienteNumero = 1;
     if (result.rows.length > 0) {
         const ultimoNumero = result.rows[0].numero_empleado;
         const numeroSecuencial = parseInt(ultimoNumero.slice(-4));
         siguienteNumero = numeroSecuencial + 1;
     }
-    
+
     // Formato: AANNNN (año + número secuencial de 4 dígitos)
     return `${año}${siguienteNumero.toString().padStart(4, '0')}`;
 }
@@ -533,12 +542,12 @@ async function generarNumeroEmpleado() {
 // UTILITY - Obtener estadísticas de empleados
 async function getEstadisticasEmpleados() {
     const client = await db.connect();
-    
+
     try {
         // Total de empleados
         const totalQuery = `SELECT COUNT(*) as total FROM empleados`;
         const totalResult = await client.query(totalQuery);
-        
+
         // Empleados activos
         const activosQuery = `
             SELECT COUNT(*) as activos 
@@ -547,7 +556,7 @@ async function getEstadisticasEmpleados() {
             WHERE u.activo = true
         `;
         const activosResult = await client.query(activosQuery);
-        
+
         // Empleados por licenciatura
         const cargoQuery = `
             SELECT e.licenciatura, COUNT(*) as cantidad
@@ -557,25 +566,25 @@ async function getEstadisticasEmpleados() {
             GROUP BY e.licenciatura
         `;
         const cargoResult = await client.query(cargoQuery);
-        
+
         // Convertir resultado de cargos a objeto
         const cargoCount = {};
         cargoResult.rows.forEach(row => {
             cargoCount[row.licenciatura] = parseInt(row.cantidad);
         });
-        
+
         return {
             total_empleados: parseInt(totalResult.rows[0].total),
             empleados_activos: parseInt(activosResult.rows[0].activos),
             empleados_por_cargo: cargoCount
         };
-        
+
     } finally {
         client.release();
     }
 }
 
-module.exports = { 
+module.exports = {
     // READ operations
     getEmpleados,
     getEmpleadosActivos,
@@ -584,19 +593,19 @@ module.exports = {
     getEmpleadoPorNumero,
     getEmpleadosPorCargo,
     getVeterinarios,
-    
+
     // CREATE operations
     crearEmpleado,
-    
+
     // UPDATE operations
     actualizarEmpleado,
-    
+
     // DELETE operations
     eliminarEmpleado,
-    
+
     // SEARCH operations
     buscarEmpleadosPorNombre,
-    
+
     // UTILITY operations
     existeNumeroEmpleado,
     generarNumeroEmpleado,

@@ -461,10 +461,10 @@ VALUES
 INSERT INTO empleados
 (id_usuario, numero_empleado, fecha_contratacion, cedula_profesional, licenciatura, especialidad, activo)
 VALUES
-(1, 'EMP-001', CURRENT_DATE, 10234567, 'Administración', 'Gestión Operativa', TRUE),
+(1, 'EMP-001', CURRENT_DATE, '10234567', 'Administración', 'Gestión Operativa', TRUE),
 (2, 'EMP-002', CURRENT_DATE, '12345678', 'Administración Pública', 'Dirección General', TRUE),
-(3, 'EMP-003', CURRENT_DATE, 32198746, 'Médico Veterinario Zootecnista', 'Diagnóstico por imagen', TRUE),
-(3, 'EMP-003', CURRENT_DATE, 32198746, 'Médico Veterinario Zootecnista', 'Medicina preventiva y nutrición', TRUE);
+(4, 'EMP-003', CURRENT_DATE, '32198746', 'Médico Veterinario Zootecnista', 'Diagnóstico por imagen', TRUE),
+(5, 'EMP-003', CURRENT_DATE, '32198747', 'Médico Veterinario Zootecnista', 'Medicina preventiva y nutrición', TRUE);
 
 INSERT INTO servicios (nombre, descripcion, costo_base, duracion_estimada_min, requiere_mascota) VALUES
 ('Cita de Adopción', 'Entrevista para proceso de adopción', 0.00, 45, FALSE),

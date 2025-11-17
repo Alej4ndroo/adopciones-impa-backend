@@ -17,6 +17,7 @@ const adopcionesRouter  = require('./routes/adopciones');
 const consultasRouter   = require('./routes/consultas');
 const seguimientosAdopcionRouter = require('./routes/seguimientosAdopcion');
 const serviciosRouter   = require('./routes/servicios');
+const notificacionesRouter = require('./routes/notificaciones');
 
 // ==== APP ====
 const app = express();
@@ -55,6 +56,7 @@ app.use('/adopciones', adopcionesRouter);
 app.use('/consultas', consultasRouter);
 app.use('/seguimientosAdopcion', seguimientosAdopcionRouter);
 app.use('/servicios', serviciosRouter);
+app.use('/notificaciones', notificacionesRouter);
 
 // ==================================
 // RUTA PRINCIPAL

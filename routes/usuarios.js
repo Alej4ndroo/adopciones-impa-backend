@@ -5,6 +5,7 @@ const usuariosController = require('../controllers/usuariosController');
 const { verifyToken, checkPermission } = require('../middlewares/authMiddleware');
 
 router.get('/listar', verifyToken, checkPermission('ver_usuario'), usuariosController.listar);
+router.get('/listar-clientes', verifyToken, checkPermission('ver_usuario'), usuariosController.listarClientes);
 router.post('/crear', verifyToken, checkPermission('crear_usuario'), usuariosController.crear);
 router.put('/actualizar/:id', verifyToken, usuariosController.actualizar_perfil);
 

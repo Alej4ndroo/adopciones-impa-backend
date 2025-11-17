@@ -32,6 +32,16 @@ exports.listar = async (req, res) => {
   }
 };
 
+// Listar usuarios que son clientes
+exports.listarClientes = async (req, res) => {
+  try {
+    const usuariosClientes = await Usuario.getUsuariosClientes();
+    res.json(usuariosClientes);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: 'Error al obtener usuarios clientes' });
+  }
+};
 
 // Listar usuarios activos
 exports.listarActivos = async (req, res) => {

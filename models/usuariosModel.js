@@ -103,6 +103,29 @@ async function getUsuarios() {
   return result.rows;
 }
 
+// READ - Obtener todos los usuarios (con rol y dirección principal)
+async function getUsuariosClientes() {
+  const query = `
+    SELECT 
+      u.*, 
+      r.nombre_rol,
+      json_build_object(
+          'calle', d.calle,
+          'colonia', d.colonia,
+          'codigo_postal', d.codigo_postal,
+          'ciudad', d.ciudad,
+          'estado', d.estado
+      ) as direccion
+    FROM usuarios u
+    LEFT JOIN roles r ON u.id_rol = r.id_rol
+    LEFT JOIN direcciones d ON u.id_usuario = d.id_usuario AND d.es_principal = TRUE
+    WHERE u.id_rol = 4
+    ORDER BY u.fecha_creacion DESC
+  `;
+  const result = await db.query(query);
+  return result.rows;
+}
+
 // READ - Obtener solo usuarios activos (con rol y dirección principal)
 async function getUsuariosActivos() {
   const query = `
@@ -503,6 +526,7 @@ async function existeCorreo(correo_electronico, excluirId = null) {
 module.exports = {
   getDatosCompletosPorId,
   getUsuarios,
+  getUsuariosClientes,
   getUsuariosActivos,
   getUsuarioPorId,
   getUsuarioPorCorreo,

@@ -1,4 +1,4 @@
-// routes/personas.js
+// routes/seguimientos.js
 const express = require('express');
 const router = express.Router();
 const seguimientosAdopcionController = require('../controllers/seguimientosAdopcionController');

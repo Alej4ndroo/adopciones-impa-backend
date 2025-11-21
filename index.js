@@ -9,7 +9,6 @@ const cors = require('cors');
 const authRouter        = require('./routes/auth');
 const homeRouter        = require('./routes/home');
 const usuariosRouter    = require('./routes/usuarios');
-const personasRouter    = require('./routes/personas');
 const empleadosRouter   = require('./routes/empleados');
 const mascotasRouter    = require('./routes/mascotas');
 const citasRouter       = require('./routes/citas');
@@ -48,7 +47,6 @@ app.use(express.static('public')); // Archivos estáticos (si los tienes)
 app.use('/auth', authRouter);
 app.use('/home', homeRouter);
 app.use('/usuarios', usuariosRouter);
-app.use('/personas', personasRouter);
 app.use('/empleados', empleadosRouter);
 app.use('/mascotas', mascotasRouter);
 app.use('/citas', citasRouter);

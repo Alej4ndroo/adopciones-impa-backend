@@ -386,11 +386,7 @@ const calcularDiasEnProceso = async (id) => {
 module.exports = {
     // READ operations
     getAdopciones,
-    getAdopcionesPorEstado,
-    getAdopcionPorId,
     getAdopcionesPorUsuario,
-    getAdopcionesPorMascota,
-    getAdopcionesPendientesDocumentos,
     
     // CREATE operations
     crearAdopcion,
@@ -408,7 +404,6 @@ module.exports = {
     getEstadisticasAdopciones,
     getTiempoPromedioAdopcion,
     puedeAdoptar,
-    getHistorialMascota,
     validarFechasAdopcion,
     calcularDiasEnProceso
 };

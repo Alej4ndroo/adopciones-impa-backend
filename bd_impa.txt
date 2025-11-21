@@ -160,7 +160,6 @@ CREATE TABLE adopciones (
   fecha_entrega TIMESTAMPTZ,
   estado estado_adopcion DEFAULT 'en_proceso',
   estado_solicitud estado_solicitud_adopcion NOT NULL DEFAULT 'en_revision',
-  documentos_verificados BOOLEAN DEFAULT FALSE,
   motivo_devolucion TEXT,
   fecha_devolucion TIMESTAMPTZ,
   observaciones TEXT,

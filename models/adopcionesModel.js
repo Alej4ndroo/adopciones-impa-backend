@@ -10,35 +10,47 @@ const getAdopciones = async () => {
             a.fecha_solicitud, 
             a.estado, 
             a.estado_solicitud, 
-            a.documentos_verificados, 
             a.fecha_entrega,
             a.motivo_adopcion,
             
-            -- Objeto anidado de Mascota
             json_build_object(
                 'id_mascota', m.id_mascota,
                 'nombre', m.nombre,
                 'especie', m.especie,
-                'raza', m.raza
+                'raza', m.raza,
+                
+                'imagen_base64', (
+                    SELECT i.imagen_base64 
+                    FROM imagenes_mascotas i 
+                    WHERE i.id_mascota = m.id_mascota 
+                    ORDER BY i.id_imagen_mascota ASC
+                    LIMIT 1
+                )
             ) AS mascota,
             
-            -- Objeto anidado de Adoptante (Usuario)
             json_build_object(
                 'id_usuario', u.id_usuario,
                 'nombre', u.nombre,
-                'correo_electronico', u.correo_electronico
+                'correo_electronico', u.correo_electronico,
+                'foto_perfil_base64', u.foto_perfil_base64,
+                'documentacion_verificada', u.documentacion_verificada
             ) AS usuario, 
             
-            -- Objeto anidado del Usuario que procesó la solicitud
-            json_build_object(
-                'id_usuario', u_p.id_usuario,
-                'nombre', u_p.nombre,
-                'correo_electronico', u_p.correo_electronico
-            ) AS procesado_por
+            CASE 
+                WHEN u_p.id_usuario IS NOT NULL THEN
+                    json_build_object(
+                        'id_usuario', u_p.id_usuario,
+                        'nombre', u_p.nombre,
+                        'correo_electronico', u_p.correo_electronico
+                    )
+                ELSE NULL 
+            END AS procesado_por
+
         FROM adopciones a
         LEFT JOIN usuarios u ON a.id_usuario = u.id_usuario
         LEFT JOIN mascotas m ON a.id_mascota = m.id_mascota
         LEFT JOIN usuarios u_p ON a.procesado_por = u_p.id_usuario
+        
         ORDER BY a.fecha_solicitud DESC
     `;
     
@@ -145,7 +157,6 @@ const getAdopcionesPorUsuario = async (id_usuario) => {
         a.fecha_solicitud,
         a.estado,
         a.estado_solicitud,
-        a.documentos_verificados,
         a.fecha_entrega,
         a.motivo_adopcion,
         json_build_object(
@@ -233,7 +244,6 @@ const getAdopcionesPendientesDocumentos = async () => {
         LEFT JOIN personas p ON a.id_persona = p.id_persona
         LEFT JOIN usuarios u_a ON p.id_usuario = u_a.id_usuario -- Usuario del Adoptante
         LEFT JOIN mascotas m ON a.id_mascota = m.id_mascota
-        WHERE a.documentos_verificados = FALSE 
         AND a.estado_solicitud = 'en_revision'
         ORDER BY a.fecha_solicitud ASC
     `;
@@ -339,7 +349,6 @@ const aprobarAdopcion = async (id, datosAprobacion) => {
             fecha_entrega = COALESCE($1, CURRENT_TIMESTAMP),
             procesado_por = $2,
             observaciones = COALESCE($3, observaciones),
-            documentos_verificados = TRUE
         WHERE id_adopcion = $4
         RETURNING *
     `;
@@ -371,23 +380,6 @@ const rechazarAdopcion = async (id, datosRechazo) => {
     
     const values = [procesado_por, observaciones, id];
     const result = await db.query(query, values);
-    return result.rows[0];
-};
-
-/**
- * Marca los documentos como verificados
- */
-const verificarDocumentos = async (id, procesadoPor) => {
-    const query = `
-        UPDATE adopciones 
-        SET 
-            documentos_verificados = TRUE,
-            procesado_por = $1
-        WHERE id_adopcion = $2
-        RETURNING *
-    `;
-    
-    const result = await db.query(query, [procesadoPor, id]);
     return result.rows[0];
 };
 
@@ -619,7 +611,6 @@ module.exports = {
     actualizarAdopcion,
     aprobarAdopcion,
     rechazarAdopcion,
-    verificarDocumentos,
     registrarDevolucion,
     
     // DELETE operations

@@ -103,7 +103,7 @@ exports.editar = async (req, res) => {
 
 exports.actualizar_perfil = async (req, res) => {
   try {
-    const id_usuario = req.usuario.id_usuario;
+    const id_usuario = req.params.id || req.usuario.id_usuario;
     const datosActualizados = req.body;
 
     // Validar que haya datos para actualizar
@@ -119,6 +119,7 @@ exports.actualizar_perfil = async (req, res) => {
       'correo_electronico',
       'telefono',
       'fecha_nacimiento',
+      'activo',
       'calle',
       'colonia',
       'codigo_postal',

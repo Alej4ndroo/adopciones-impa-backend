@@ -60,8 +60,8 @@ async function getPersonaPorUsuarioId(id_usuario) {
             p.*, 
             ine.archivo_url AS url_ine,
             acnac.archivo_url AS url_acta,
-            json_build_object(
             comdom.archivo_url AS url_comprobante,
+            json_build_object(
                 'id_usuario', u.id_usuario,
                 'nombre', u.nombre,
                 'correo_electronico', u.correo_electronico,

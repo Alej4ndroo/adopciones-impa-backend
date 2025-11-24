@@ -7,5 +7,6 @@ router.get('/listar', citasController.listar);
 router.get('/usuario/:id_usuario', citasController.listarPorUsuario);
 router.post('/crear', citasController.crear);
 router.get('/contar', citasController.contarCitasHoy);
+router.put('/actualizar-fecha/:id', citasController.actualizarFecha);
 
 module.exports = router;

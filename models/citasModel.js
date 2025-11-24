@@ -182,6 +182,20 @@ async function actualizarCita(id_cita, datosActualizados) {
   return result.rows[0];
 }
 
+// UPDATE - Actualizar solo fecha/estado de cita
+async function actualizarFechaCita(id_cita, fecha_cita, estado_cita = 'programada') {
+  const query = `
+    UPDATE citas
+    SET fecha_cita = $1,
+        estado_cita = $2
+    WHERE id_cita = $3
+    RETURNING *;
+  `;
+  const values = [fecha_cita, estado_cita, id_cita];
+  const result = await db.query(query, values);
+  return result.rows[0];
+}
+
 // DELETE - Eliminar una cita
 async function eliminarCita(id_cita) {
   const query = `
@@ -285,5 +299,6 @@ module.exports = {
   getCitasPorEmpleado,
   getCitasPorMascota,
   getCitasPorRangoFechas,
-  getCitasPorEstado
+  getCitasPorEstado,
+  actualizarFechaCita
 };

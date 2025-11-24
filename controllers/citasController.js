@@ -48,6 +48,28 @@ exports.crear = async (req, res) => {
   }
 };
 
+// Actualizar fecha/estado de cita (reagendar)
+exports.actualizarFecha = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fecha_cita, estado_cita = 'programada' } = req.body;
+
+    if (!fecha_cita) {
+      return res.status(400).json({ mensaje: 'Falta fecha_cita' });
+    }
+
+    const cita = await Cita.actualizarFechaCita(id, fecha_cita, estado_cita);
+    if (!cita) {
+      return res.status(404).json({ mensaje: 'Cita no encontrada' });
+    }
+
+    res.json({ mensaje: 'Cita actualizada', cita });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensaje: 'Error al actualizar cita' });
+  }
+};
+
 // Contar citas de hoy
 exports.contarCitasHoy = async (req, res) => {
   try {

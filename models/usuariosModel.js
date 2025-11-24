@@ -18,6 +18,24 @@ async function getDatosCompletosPorId(id_usuario) {
         'telefono', u.telefono,
         'documentacion_verificada', u.documentacion_verificada,
         'foto_perfil_base64', u.foto_perfil_base64,
+        'url_ine', (
+          SELECT dp.archivo_url
+          FROM documentos_persona dp
+          WHERE dp.id_usuario = u.id_usuario AND dp.tipo_documento = 'ine'
+          LIMIT 1
+        ),
+        'url_acta', (
+          SELECT dp.archivo_url
+          FROM documentos_persona dp
+          WHERE dp.id_usuario = u.id_usuario AND dp.tipo_documento = 'acnac'
+          LIMIT 1
+        ),
+        'url_comprobante', (
+          SELECT dp.archivo_url
+          FROM documentos_persona dp
+          WHERE dp.id_usuario = u.id_usuario AND dp.tipo_documento = 'comdom'
+          LIMIT 1
+        ),
         'activo', u.activo,
         'id_rol', u.id_rol,
         
@@ -191,6 +209,34 @@ async function getUsuarioPorCorreo(correo_electronico) {
   `;
   const result = await db.query(query, [correo_electronico]);
   return result.rows[0];
+}
+
+// UPSERT de documentos (base64) por usuario
+async function upsertDocumentoUsuario(id_usuario, tipo_documento, archivo_url) {
+  const selectQuery = `
+    SELECT id_documento FROM documentos_persona
+    WHERE id_usuario = $1 AND tipo_documento = $2
+  `;
+  const existing = await db.query(selectQuery, [id_usuario, tipo_documento]);
+
+  if (existing.rows.length > 0) {
+    const updateQuery = `
+      UPDATE documentos_persona
+      SET archivo_url = $1, fecha_verificacion = NULL, verificado = FALSE
+      WHERE id_usuario = $2 AND tipo_documento = $3
+      RETURNING *
+    `;
+    const { rows } = await db.query(updateQuery, [archivo_url, id_usuario, tipo_documento]);
+    return rows[0];
+  }
+
+  const insertQuery = `
+    INSERT INTO documentos_persona (id_usuario, tipo_documento, archivo_url)
+    VALUES ($1, $2, $3)
+    RETURNING *
+  `;
+  const { rows } = await db.query(insertQuery, [id_usuario, tipo_documento, archivo_url]);
+  return rows[0];
 }
 
 // CREATE - Crear un nuevo usuario
@@ -371,7 +417,8 @@ async function actualizarUsuario(id_usuario, data) {
 
         const usuarioActualizado = userResult.rows[0];
 
-        // 🏠 Si se incluyen datos de dirección, se actualiza
+        let addressResult = null;
+        // 🏠 Si se incluyen datos de dirección, se actualiza o inserta principal
         if (calle || colonia || codigo_postal || ciudad || estado || pais) {
             const updateAddressQuery = `
                 UPDATE direcciones
@@ -389,7 +436,7 @@ async function actualizarUsuario(id_usuario, data) {
                 RETURNING *;
             `;
 
-            const addressResult = await client.query(updateAddressQuery, [
+            addressResult = await client.query(updateAddressQuery, [
                 calle || null,
                 colonia || null,
                 codigo_postal || null,
@@ -401,14 +448,45 @@ async function actualizarUsuario(id_usuario, data) {
                 id_usuario
             ]);
 
+            // Si no había dirección principal, insertamos una nueva
+            if (addressResult.rows.length === 0) {
+                const insertAddressQuery = `
+                    INSERT INTO direcciones (
+                        id_usuario, calle, colonia, codigo_postal, ciudad,
+                        estado, pais, tipo_direccion, es_principal
+                    )
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                    RETURNING *;
+                `;
+
+                addressResult = await client.query(insertAddressQuery, [
+                    id_usuario,
+                    calle || '',
+                    colonia || '',
+                    codigo_postal || '',
+                    ciudad || '',
+                    estado || 'Michoacán',
+                    pais || 'México',
+                    tipo_direccion || 'domicilio',
+                    es_principal !== undefined ? es_principal : true
+                ]);
+            }
+
             usuarioActualizado.direccion = addressResult.rows[0] || null;
         }
+
+        // Refrescar datos completos (incluye direcciones)
+        const updatedUser = await getUsuarioPorId(id_usuario);
+        const perfilFinal = updatedUser || {
+            ...usuarioActualizado,
+            direcciones: addressResult?.rows?.length ? addressResult.rows : []
+        };
 
         await client.query("COMMIT");
 
         return {
             mensaje: "Usuario actualizado correctamente.",
-            perfil: usuarioActualizado
+            perfil: perfilFinal
         };
 
     } catch (error) {
@@ -539,5 +617,6 @@ module.exports = {
   activarUsuario,
   eliminarUsuario,
   buscarUsuariosPorNombre,
-  existeCorreo
+  existeCorreo,
+  upsertDocumentoUsuario
 };

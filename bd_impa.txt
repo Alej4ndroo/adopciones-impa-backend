@@ -472,3 +472,7 @@ INSERT INTO servicios (nombre, descripcion, costo_base, duracion_estimada_min, r
 ('Esterilización', 'Cirugía de esterilización', 800.00, 120, TRUE),
 ('Seguimiento Post-Adopción', 'Visita de seguimiento', 0.00, 60, TRUE),
 ('Desparasitación', 'Tratamiento antiparasitario', 100.00, 20, TRUE);
+
+
+ALTER TABLE documentos_persona
+  ALTER COLUMN archivo_url TYPE TEXT;

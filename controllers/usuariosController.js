@@ -54,15 +54,15 @@ exports.listarActivos = async (req, res) => {
   }
 };
 
-// Obtener un usuario por ID
+// Obtener un usuario por ID (con datos completos/direcciones)
 exports.obtenerPorId = async (req, res) => {
   try {
     const { id } = req.params;
-    const usuario = await Usuario.getUsuarioPorId(id);
-    if (!usuario) {
+    const data = await Usuario.getDatosCompletosPorId(id);
+    if (!data || !data.usuario_completo) {
       return res.status(404).json({ mensaje: 'Usuario no encontrado' });
     }
-    res.json(usuario);
+    res.json(data.usuario_completo);
   } catch (error) {
     console.error(error);
     res.status(500).json({ mensaje: 'Error al obtener usuario' });
@@ -80,20 +80,20 @@ exports.crear = async (req, res) => {
   }
 };
 
-// Editar (actualizar) usuario existente
+// Editar (actualizar) usuario existente (no se usa en frontend público)
 exports.editar = async (req, res) => {
   try {
     const { id } = req.params;
     const datosActualizados = req.body;
+    console.log('[actualizar_perfil] id_usuario:', id_usuario, 'body:', datosActualizados);
 
-    // 🔍 Llamamos al modelo para actualizar
-    const usuarioActualizado = await Usuario.actualizarUsuario(id, datosActualizados);
+    const resultado = await Usuario.actualizarUsuario(id, datosActualizados);
 
-    if (!usuarioActualizado) {
+    if (!resultado) {
       return res.status(404).json({ mensaje: 'Usuario no encontrado' });
     }
 
-    res.status(200).json(resultado.perfil);
+    res.status(200).json({ perfil: resultado.perfil || resultado });
 
   } catch (error) {
     console.error('Error en editar usuario:', error);
@@ -103,7 +103,7 @@ exports.editar = async (req, res) => {
 
 exports.actualizar_perfil = async (req, res) => {
   try {
-    const id_usuario = req.usuario.id_usuario;
+    const id_usuario = req.params.id || req.usuario.id_usuario;
     const datosActualizados = req.body;
 
     // Validar que haya datos para actualizar
@@ -119,6 +119,7 @@ exports.actualizar_perfil = async (req, res) => {
       'correo_electronico',
       'telefono',
       'fecha_nacimiento',
+      'activo',
       'calle',
       'colonia',
       'codigo_postal',
@@ -143,19 +144,15 @@ exports.actualizar_perfil = async (req, res) => {
       });
     }
 
-    // Actualizar el perfil
-    const perfilActualizado = await Usuario.actualizarUsuario(
-      id_usuario, 
-      datosParaActualizar
-    );
-
-    if (!perfilActualizado) {
+    // Actualizar el perfil (modelo ya refresca datos completos)
+    const resultado = await Usuario.actualizarUsuario(id_usuario, datosParaActualizar);
+    if (!resultado) {
       return res.status(404).json({ 
         error: 'No se pudo actualizar el perfil' 
       });
     }
 
-    res.status(200).json(perfilActualizado.perfil);
+    res.status(200).json(resultado.perfil || resultado);
 
   } catch (error) {
     console.error('Error al actualizar perfil:', error);

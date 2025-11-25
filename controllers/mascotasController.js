@@ -50,3 +50,22 @@ exports.obtenerPorId = async (req, res) => {
         }
     }
 };
+
+// Actualizar una mascota
+exports.actualizar = async (req, res) => {
+  try {
+    const { id_mascota } = req.params;
+    if (!id_mascota) {
+      return res.status(400).json({ mensaje: 'Falta el id de la mascota.' });
+    }
+
+    const mascotaActualizada = await Mascota.actualizarMascota(id_mascota, req.body);
+    res.json({ mensaje: 'Mascota actualizada con éxito.', mascota: mascotaActualizada });
+  } catch (error) {
+    console.error('Error al actualizar mascota:', error);
+    if (error.message === 'Mascota no encontrada') {
+      return res.status(404).json({ mensaje: 'Mascota no encontrada.' });
+    }
+    res.status(500).json({ mensaje: 'Error al actualizar la mascota.' });
+  }
+};

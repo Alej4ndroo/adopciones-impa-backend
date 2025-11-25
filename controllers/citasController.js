@@ -70,6 +70,22 @@ exports.actualizarFecha = async (req, res) => {
   }
 };
 
+// Actualizar datos generales de la cita (sin cambiar horario)
+exports.actualizar = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.status(400).json({ mensaje: 'Falta id de cita' });
+
+    const cita = await Cita.actualizarCita(id, req.body);
+    if (!cita) return res.status(404).json({ mensaje: 'Cita no encontrada' });
+
+    res.json({ mensaje: 'Cita actualizada', cita });
+  } catch (error) {
+    console.error('Error al actualizar cita:', error);
+    res.status(500).json({ mensaje: 'Error al actualizar la cita' });
+  }
+};
+
 // Contar citas de hoy
 exports.contarCitasHoy = async (req, res) => {
   try {

@@ -120,6 +120,7 @@ exports.actualizar_perfil = async (req, res) => {
       'telefono',
       'fecha_nacimiento',
       'activo',
+      'documentacion_verificada',
       'calle',
       'colonia',
       'codigo_postal',

@@ -12,6 +12,8 @@ const getAdopciones = async () => {
             a.estado_solicitud, 
             a.fecha_entrega,
             a.motivo_adopcion,
+            a.ubicacion_en_hogar,
+            a.observaciones,
             
             json_build_object(
                 'id_mascota', m.id_mascota,
@@ -70,6 +72,8 @@ const getAdopcionesPorUsuario = async (id_usuario) => {
         a.estado_solicitud,
         a.fecha_entrega,
         a.motivo_adopcion,
+        a.ubicacion_en_hogar,
+        a.observaciones,
         json_build_object(
             'id_mascota', m.id_mascota,
             'nombre', m.nombre,
@@ -182,7 +186,7 @@ const aprobarAdopcion = async (id, datosAprobacion) => {
             estado_solicitud = 'aprobada',
             fecha_entrega = COALESCE($1, CURRENT_TIMESTAMP),
             procesado_por = $2,
-            observaciones = COALESCE($3, observaciones),
+            observaciones = COALESCE($3, observaciones)
         WHERE id_adopcion = $4
         RETURNING *
     `;

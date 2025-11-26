@@ -1,9 +1,9 @@
 const db = require('../config/db');
 
-// Obtener todos los servicios activos
+// Obtener todos los servicios (activos e inactivos)
 async function getServicios() {
   try {
-    const query = `SELECT * FROM servicios WHERE activo = true ORDER BY nombre`;
+    const query = `SELECT * FROM servicios ORDER BY nombre`;
     const result = await db.query(query);
     return result.rows;
   } catch (error) {

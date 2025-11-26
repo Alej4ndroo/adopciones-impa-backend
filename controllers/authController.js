@@ -12,6 +12,11 @@ exports.login = async (req, res) => {
     const valido = await bcrypt.compare(contrasena, usuario.contrasena);
     if (!valido) return res.status(401).json({ message: 'Contraseña incorrecta' });
 
+    // Bloquear inicio de sesión si el usuario está inactivo
+    if (!usuario.activo) {
+      return res.status(403).json({ message: 'Usuario inactivo. Contacta al administrador.' });
+    }
+
     const payload = {
       id_usuario: usuario.id_usuario,
       nombre_rol: usuario.nombre_rol,
@@ -85,63 +90,35 @@ exports.registro = async (req, res) => {
   }
 };
 
-// --- FUNCIÓN DE RECUPERACIÓN (AHORA COMPLETA) ---
+// --- FUNCIÓN DE RECUPERACIÓN (ahora resetea directamente) ---
 exports.contrasenaOlvidada = async (req, res) => {
-  const { email } = req.body;
+  const { email, nombre_completo, nueva_contrasena } = req.body;
+
+  if (!email || !nombre_completo || !nueva_contrasena) {
+    return res.status(400).json({ message: 'Faltan datos para restablecer la contraseña.' });
+  }
 
   try {
     const usuario = await Usuario.getUsuarioPorCorreo(email);
 
-    // Importante: Por seguridad, NUNCA reveles si el correo existe o no.
-    // Siempre devuelve un mensaje genérico.
-    if (usuario) {
-      // 1. Generar un token de reseteo (diferente al de login)
-      const resetPayload = { id_usuario: usuario.id_usuario };
-      const resetToken = jwt.sign(resetPayload, process.env.RESET_SECRET || 'clave_secreta_reseteo', { expiresIn: '1h' });
-
-      // 2. Enviar el correo electrónico
-      // Asegúrate de tener estas variables en tu archivo .env
-      const transporter = nodemailer.createTransport({
-        host: process.env.EMAIL_HOST, // ej. "smtp.gmail.com"
-        port: process.env.EMAIL_PORT, // ej. 465
-        secure: true, // true para puerto 465, false para otros
-        auth: {
-          user: process.env.EMAIL_USER, // Tu correo
-          pass: process.env.EMAIL_PASS, // Tu contraseña de aplicación
-        },
-      });
-
-      const resetLink = `${process.env.FRONTEND_URL}/resetear-contrasena/${resetToken}`;
-
-      const mailOptions = {
-        from: `"Soporte App" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: 'Recuperación de Contraseña',
-        html: `
-          <p>Hola ${usuario.nombre},</p>
-          <p>Hemos recibido una solicitud para reestablecer tu contraseña.</p>
-          <p>Haz clic en el siguiente enlace para continuar. Si no lo solicitaste, ignora este correo.</p>
-          <a href="${resetLink}" target="_blank">Reestablecer mi contraseña</a>
-          <p>El enlace expira en 1 hora.</p>
-        `,
-      };
-
-      // Intentamos enviar el correo
-      try {
-        await transporter.sendMail(mailOptions);
-        console.log('Correo de recuperación enviado a:', email);
-      } catch (emailError) {
-        console.error('Error al enviar el correo de recuperación:', emailError);
-        // NO enviamos un error al cliente, por seguridad.
-      }
+    if (!usuario) {
+      // Respuesta genérica para no filtrar existencia
+      return res.status(200).json({ message: 'Contraseña restablecida si los datos son correctos.' });
     }
-    
-    // 3. Enviar respuesta exitosa (genérica)
-    res.status(200).json({ message: 'Si el correo existe, recibirás instrucciones.' });
 
+    // Validar nombre contra el registro (trim/lower para evitar mayúsculas/espacios)
+    const nombreDb = (usuario.nombre || '').trim().toLowerCase();
+    const nombreReq = (nombre_completo || '').trim().toLowerCase();
+    if (nombreDb !== nombreReq) {
+      return res.status(400).json({ message: 'Los datos no coinciden.' });
+    }
+
+    // Actualizar contraseña
+    await Usuario.actualizarUsuario(usuario.id_usuario, { contrasena: nueva_contrasena });
+
+    res.status(200).json({ message: 'Contraseña restablecida con éxito.' });
   } catch (err) {
-    console.error(err);
-    // No enviar 500 aquí, seguir con la respuesta genérica por seguridad
-    res.status(200).json({ message: 'Si el correo existe, recibirás instrucciones.' });
+    console.error('Error al restablecer contraseña:', err);
+    res.status(500).json({ message: 'Error al restablecer la contraseña.' });
   }
 };

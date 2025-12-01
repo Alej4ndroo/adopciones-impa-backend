@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
 const Usuario = require('../models/usuariosModel');
+const { ensureNotificacionPerfilIncompleto } = require('../services/notificacionesService');
 
 // --- Configuración de Multer para subida de archivos ---
 const storage = multer.diskStorage({
@@ -73,6 +74,9 @@ exports.obtenerPorId = async (req, res) => {
 exports.crear = async (req, res) => {
   try {
     const nuevoUsuario = await Usuario.crearUsuario(req.body);
+    if (nuevoUsuario?.usuario?.id_usuario) {
+      await ensureNotificacionPerfilIncompleto(nuevoUsuario.usuario.id_usuario);
+    }
     res.status(201).json(nuevoUsuario);
   } catch (error) {
     console.error(error);
@@ -153,6 +157,8 @@ exports.actualizar_perfil = async (req, res) => {
       });
     }
 
+    await ensureNotificacionPerfilIncompleto(id_usuario);
+
     res.status(200).json(resultado.perfil || resultado);
 
   } catch (error) {
@@ -214,6 +220,8 @@ exports.subirDocumento = async (req, res) => {
 
     // Guardamos el base64 en documentos_persona ligado al usuario
     const documento = await Usuario.upsertDocumentoUsuario(id_usuario, type, archivo_base64);
+
+    await ensureNotificacionPerfilIncompleto(id_usuario);
 
     return res.json({ ok: true, documento });
   } catch (error) {

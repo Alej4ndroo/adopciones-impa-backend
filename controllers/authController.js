@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const Usuario = require('../models/usuariosModel');
+const { ensureNotificacionPerfilIncompleto, ensureNotificacionSeguimiento } = require('../services/notificacionesService');
 
 exports.login = async (req, res) => {
   const { correo_electronico, contrasena } = req.body;
@@ -26,6 +27,8 @@ exports.login = async (req, res) => {
     const token = jwt.sign(payload, process.env.JWT_SECRET || 'clave_secreta', { expiresIn: '1d' });
 
     const datosCompletos = await Usuario.getDatosCompletosPorId(usuario.id_usuario);
+    await ensureNotificacionPerfilIncompleto(usuario.id_usuario, datosCompletos?.usuario_completo);
+    await ensureNotificacionSeguimiento(usuario.id_usuario);
 
     res.json({
       token,
@@ -74,6 +77,8 @@ exports.registro = async (req, res) => {
     });
 
     const datosCompletos = await Usuario.getDatosCompletosPorId(id);
+    await ensureNotificacionPerfilIncompleto(id, datosCompletos?.usuario_completo);
+    await ensureNotificacionSeguimiento(id);
 
     return res.json({
       token,

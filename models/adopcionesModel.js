@@ -385,6 +385,29 @@ const calcularDiasEnProceso = async (id) => {
     return result.rows[0];
 };
 
+/**
+ * Obtiene las adopciones aprobadas para un usuario (para seguimiento)
+ */
+const getAdopcionesAprobadasPorUsuario = async (id_usuario) => {
+    const query = `
+        SELECT 
+            a.id_adopcion,
+            a.id_usuario,
+            a.id_mascota,
+            a.fecha_solicitud,
+            a.fecha_entrega,
+            a.estado,
+            a.estado_solicitud,
+            m.nombre AS nombre_mascota
+        FROM adopciones a
+        LEFT JOIN mascotas m ON a.id_mascota = m.id_mascota
+        WHERE a.id_usuario = $1
+          AND a.estado_solicitud = 'aprobada'
+    `;
+    const { rows } = await db.query(query, [id_usuario]);
+    return rows;
+};
+
 // ==================== EXPORTS ====================
 
 module.exports = {
@@ -409,5 +432,6 @@ module.exports = {
     getTiempoPromedioAdopcion,
     puedeAdoptar,
     validarFechasAdopcion,
-    calcularDiasEnProceso
+    calcularDiasEnProceso,
+    getAdopcionesAprobadasPorUsuario
 };

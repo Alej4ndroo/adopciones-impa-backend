@@ -1,5 +1,6 @@
 // controllers/citasController.js
 const Adopcion = require('../models/adopcionesModel');
+const Notificaciones = require('../models/notificacionesModel');
 
 // Listar todas las adopciones
 exports.listar = async (req, res) => {
@@ -82,6 +83,20 @@ exports.aprobar = async (req, res) => {
       return res.status(404).json({ mensaje: 'Adopción no encontrada' });
     }
 
+    const idUsuario = adopcion.id_usuario || adopcion.usuario?.id_usuario;
+    if (idUsuario) {
+      try {
+        await Notificaciones.crearNotificacion({
+          id_usuario: idUsuario,
+          tipo_notificacion: 'aceptacion',
+          titulo: '¡Tu adopción fue aprobada!',
+          mensaje: `La solicitud de adopción para ${adopcion.mascota?.nombre || 'la mascota seleccionada'} ha sido aprobada. Nos pondremos en contacto para los siguientes pasos.`
+        });
+      } catch (notifError) {
+        console.error('No se pudo crear notificación de adopción aprobada:', notifError);
+      }
+    }
+
     res.json(adopcion);
   } catch (error) {
     console.error(error);
@@ -103,6 +118,20 @@ exports.rechazar = async (req, res) => {
 
     if (!adopcion) {
       return res.status(404).json({ mensaje: 'Adopción no encontrada' });
+    }
+
+    const idUsuario = adopcion.id_usuario || adopcion.usuario?.id_usuario;
+    if (idUsuario) {
+      try {
+        await Notificaciones.crearNotificacion({
+          id_usuario: idUsuario,
+          tipo_notificacion: 'rechazo',
+          titulo: 'Solicitud de adopción rechazada',
+          mensaje: `La solicitud de adopción para ${adopcion.mascota?.nombre || 'la mascota seleccionada'} fue rechazada. Puedes revisar tus documentos o intentar con otra mascota.`
+        });
+      } catch (notifError) {
+        console.error('No se pudo crear notificación de adopción rechazada:', notifError);
+      }
     }
 
     res.json(adopcion);

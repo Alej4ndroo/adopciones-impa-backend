@@ -21,7 +21,7 @@ async function getSeguimientos() {
       json_build_object(
         'id_adopcion', a.id_adopcion,
         'id_mascota', a.id_mascota,
-        'id_persona', a.id_persona,
+        'id_persona', NULL,
         'estado_solicitud', a.estado_solicitud,
         'fecha_solicitud', a.fecha_solicitud,
         'fecha_entrega', a.fecha_entrega,
@@ -32,7 +32,7 @@ async function getSeguimientos() {
           'raza', m.raza
         ),
         'persona', json_build_object(
-          'id_persona', p.id_persona,
+          'id_persona', NULL,
           'nombre', up.nombre,
           'telefono', up.telefono,
           'correo_electronico', up.correo_electronico
@@ -53,18 +53,17 @@ async function getSeguimientos() {
     LEFT JOIN usuarios u ON s.realizado_por = u.id_usuario
     LEFT JOIN adopciones a ON s.id_adopcion = a.id_adopcion
     LEFT JOIN mascotas m ON a.id_mascota = m.id_mascota
-    LEFT JOIN personas p ON a.id_persona = p.id_persona
-    LEFT JOIN usuarios up ON p.id_usuario = up.id_usuario
+    LEFT JOIN usuarios up ON a.id_usuario = up.id_usuario
     LEFT JOIN seguimiento_fotos sf ON s.id_seguimiento = sf.id_seguimiento
     GROUP BY 
       s.id_seguimiento, s.id_adopcion, s.fecha_seguimiento, 
       s.estado_mascota, s.observaciones, s.requiere_atencion,
       s.siguiente_seguimiento, s.fecha_creacion,
       u.id_usuario, u.nombre, u.correo_electronico, u.foto_perfil_base64,
-      a.id_adopcion, a.id_mascota, a.id_persona, a.estado_solicitud,
+      a.id_adopcion, a.id_mascota, a.estado_solicitud,
       a.fecha_solicitud, a.fecha_entrega,
       m.id_mascota, m.nombre, m.especie, m.raza,
-      p.id_persona, up.nombre, up.telefono, up.correo_electronico
+      up.nombre, up.telefono, up.correo_electronico
     ORDER BY s.fecha_seguimiento DESC
   `;
   const result = await db.query(query);
@@ -92,7 +91,7 @@ async function getSeguimientoPorId(id_seguimiento) {
       json_build_object(
         'id_adopcion', a.id_adopcion,
         'id_mascota', a.id_mascota,
-        'id_persona', a.id_persona,
+        'id_persona', NULL,
         'estado_solicitud', a.estado_solicitud,
         'fecha_solicitud', a.fecha_solicitud,
         'fecha_entrega', a.fecha_entrega,
@@ -103,7 +102,7 @@ async function getSeguimientoPorId(id_seguimiento) {
           'raza', m.raza
         ),
         'persona', json_build_object(
-          'id_persona', p.id_persona,
+          'id_persona', NULL,
           'nombre', up.nombre,
           'telefono', up.telefono,
           'correo_electronico', up.correo_electronico
@@ -124,8 +123,7 @@ async function getSeguimientoPorId(id_seguimiento) {
     LEFT JOIN usuarios u ON s.realizado_por = u.id_usuario
     LEFT JOIN adopciones a ON s.id_adopcion = a.id_adopcion
     LEFT JOIN mascotas m ON a.id_mascota = m.id_mascota
-    LEFT JOIN personas p ON a.id_persona = p.id_persona
-    LEFT JOIN usuarios up ON p.id_usuario = up.id_usuario
+    LEFT JOIN usuarios up ON a.id_usuario = up.id_usuario
     LEFT JOIN seguimiento_fotos sf ON s.id_seguimiento = sf.id_seguimiento
     WHERE s.id_seguimiento = $1
     GROUP BY 
@@ -133,10 +131,10 @@ async function getSeguimientoPorId(id_seguimiento) {
       s.estado_mascota, s.observaciones, s.requiere_atencion,
       s.siguiente_seguimiento, s.fecha_creacion,
       u.id_usuario, u.nombre, u.correo_electronico, u.foto_perfil_base64,
-      a.id_adopcion, a.id_mascota, a.id_persona, a.estado_solicitud,
+      a.id_adopcion, a.id_mascota, a.estado_solicitud,
       a.fecha_solicitud, a.fecha_entrega,
       m.id_mascota, m.nombre, m.especie, m.raza,
-      p.id_persona, up.nombre, up.telefono, up.correo_electronico
+      up.nombre, up.telefono, up.correo_electronico
   `;
   const result = await db.query(query, [id_seguimiento]);
   return result.rows[0];
@@ -163,7 +161,7 @@ async function getSeguimientosPorAdopcion(id_adopcion) {
       json_build_object(
         'id_adopcion', a.id_adopcion,
         'id_mascota', a.id_mascota,
-        'id_persona', a.id_persona,
+        'id_persona', NULL,
         'estado_solicitud', a.estado_solicitud,
         'fecha_solicitud', a.fecha_solicitud,
         'fecha_entrega', a.fecha_entrega,
@@ -174,7 +172,7 @@ async function getSeguimientosPorAdopcion(id_adopcion) {
           'raza', m.raza
         ),
         'persona', json_build_object(
-          'id_persona', p.id_persona,
+          'id_persona', NULL,
           'nombre', up.nombre,
           'telefono', up.telefono,
           'correo_electronico', up.correo_electronico
@@ -195,8 +193,7 @@ async function getSeguimientosPorAdopcion(id_adopcion) {
     LEFT JOIN usuarios u ON s.realizado_por = u.id_usuario
     LEFT JOIN adopciones a ON s.id_adopcion = a.id_adopcion
     LEFT JOIN mascotas m ON a.id_mascota = m.id_mascota
-    LEFT JOIN personas p ON a.id_persona = p.id_persona
-    LEFT JOIN usuarios up ON p.id_usuario = up.id_usuario
+    LEFT JOIN usuarios up ON a.id_usuario = up.id_usuario
     LEFT JOIN seguimiento_fotos sf ON s.id_seguimiento = sf.id_seguimiento
     WHERE s.id_adopcion = $1
     GROUP BY 
@@ -204,10 +201,10 @@ async function getSeguimientosPorAdopcion(id_adopcion) {
       s.estado_mascota, s.observaciones, s.requiere_atencion,
       s.siguiente_seguimiento, s.fecha_creacion,
       u.id_usuario, u.nombre, u.correo_electronico, u.foto_perfil_base64,
-      a.id_adopcion, a.id_mascota, a.id_persona, a.estado_solicitud,
+      a.id_adopcion, a.id_mascota, a.estado_solicitud,
       a.fecha_solicitud, a.fecha_entrega,
       m.id_mascota, m.nombre, m.especie, m.raza,
-      p.id_persona, up.nombre, up.telefono, up.correo_electronico
+      up.nombre, up.telefono, up.correo_electronico
     ORDER BY s.fecha_seguimiento DESC
   `;
   const result = await db.query(query, [id_adopcion]);
@@ -245,6 +242,24 @@ async function crearSeguimiento(seguimientoData) {
   ];
   const result = await db.query(query, values);
   return result.rows[0];
+}
+
+async function agregarFotosSeguimiento(id_seguimiento, fotos = []) {
+  if (!id_seguimiento || !Array.isArray(fotos) || fotos.length === 0) return [];
+  const inserts = [];
+  for (const foto of fotos) {
+    const url = foto?.url || foto?.archivo_base64;
+    if (!url) continue;
+    const descripcion = foto?.descripcion || null;
+    const query = `
+      INSERT INTO seguimiento_fotos (id_seguimiento, url, descripcion)
+      VALUES ($1, $2, $3)
+      RETURNING *
+    `;
+    const { rows } = await db.query(query, [id_seguimiento, url, descripcion]);
+    if (rows[0]) inserts.push(rows[0]);
+  }
+  return inserts;
 }
 
 // UPDATE - Actualizar un seguimiento existente
@@ -295,6 +310,7 @@ module.exports = {
   getSeguimientoPorId,
   getSeguimientosPorAdopcion,
   crearSeguimiento,
+  agregarFotosSeguimiento,
   actualizarSeguimiento,
   eliminarSeguimiento
 };

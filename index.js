@@ -27,8 +27,8 @@ const app = express();
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'https://adopciones-impa-frontend.vercel.app',
-    'https://adopciones-impa-frontend-git-main-alejandros-projects-eb484e24.vercel.app'
+    'https://adopcionesimpa.vercel.app',
+    'https://adopcionesimpa-git-main-alejandros-projects-eb484e24.vercel.app'
   ],
   credentials: true
 }));
